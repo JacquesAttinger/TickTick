@@ -1,0 +1,10 @@
+# Last edited: 2026-09-22 12:20 PT
+excluded:
+  - build
+  - DerivedData
+
+file_length:
+  error: 500
+
+function_body_length:
+  error: 75

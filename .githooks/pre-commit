@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Last edited: 2026-09-22 12:20 PT
+# Blocks a commit when a staged Swift file fails SwiftFormat (lint mode) or SwiftLint.
+# It checks the working-tree content of the staged paths, not the staged blobs.
+set -euo pipefail
+
+files=()
+while IFS= read -r file; do
+  files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACM -- '*.swift')
+
+if [[ ${#files[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+for tool in swiftformat swiftlint; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "pre-commit: $tool is not installed. Run scripts/setup.sh." >&2
+    exit 1
+  fi
+done
+
+status=0
+swiftformat --lint "${files[@]}" || status=1
+swiftlint lint --strict --quiet "${files[@]}" || status=1
+
+if [[ $status -ne 0 ]]; then
+  echo "pre-commit: fix the issues above (make format fixes most formatting issues)." >&2
+fi
+exit $status
