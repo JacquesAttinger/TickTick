@@ -1,4 +1,4 @@
-// Last edited: 2026-09-22 12:27 PT
+// Last edited: 2026-09-22 12:36 PT
 
 import AppKit
 
@@ -16,7 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    private func makeMenu() -> NSMenu {
+    func makeMenu() -> NSMenu {
         let menu = NSMenu()
         let quitItem = NSMenuItem(
             title: "Quit TickTick",
