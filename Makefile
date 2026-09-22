@@ -1,10 +1,10 @@
-# Last edited: 2026-09-22 12:35 PT
+# Last edited: 2026-09-22 12:27 PT
 # Developer commands for TickTick. Run scripts/setup.sh once before the first `make`.
 
 PROJECT := TickTick.xcodeproj
 SCHEME := TickTick
 DERIVED := build
-XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -derivedDataPath $(DERIVED)
+XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -derivedDataPath $(DERIVED) -allowProvisioningUpdates
 RELEASE_APP := $(DERIVED)/Build/Products/Release/TickTick.app
 
 .PHONY: gen build test lint format install
