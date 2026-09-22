@@ -1,4 +1,4 @@
-# Last edited: 2026-09-22 12:27 PT
+# Last edited: 2026-09-22 12:45 PT
 # Developer commands for TickTick. Run scripts/setup.sh once before the first `make`.
 
 PROJECT := TickTick.xcodeproj
@@ -29,5 +29,7 @@ format:
 install: gen
 	$(XCODEBUILD) -configuration Release build
 	pkill -x TickTick || true
+	while pgrep -x TickTick >/dev/null; do sleep 0.2; done
+	rm -rf /Applications/TickTick.app
 	ditto $(RELEASE_APP) /Applications/TickTick.app
 	open /Applications/TickTick.app
