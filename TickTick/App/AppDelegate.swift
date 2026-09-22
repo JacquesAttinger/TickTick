@@ -1,4 +1,4 @@
-// Last edited: 2026-09-22 12:36 PT
+// Last edited: 2026-09-22 12:43 PT
 
 import AppKit
 
@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let quitItem = NSMenuItem(
             title: "Quit TickTick",
             action: #selector(NSApplication.terminate(_:)),
-            keyEquivalent: "q"
+            keyEquivalent: ""
         )
         quitItem.target = NSApp
         menu.addItem(quitItem)
