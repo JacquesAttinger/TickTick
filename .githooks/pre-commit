@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Last edited: 2026-09-22 12:28 PT
+# Last edited: 2026-09-22 12:37 PT
 # Blocks a commit when a staged Swift file fails SwiftFormat (lint mode) or SwiftLint.
 # It checks the working-tree content of the staged paths, not the staged blobs.
 set -euo pipefail
@@ -29,7 +29,8 @@ if [[ "$developer_dir" != *Xcode*.app* ]]; then
 fi
 
 status=0
-swiftformat --lint "${files[@]}" || status=1
+# Paths go before --lint: SwiftFormat can misread the first path after --lint as its value.
+swiftformat "${files[@]}" --lint || status=1
 swiftlint lint --strict --quiet "${files[@]}" || status=1
 
 if [[ $status -ne 0 ]]; then
