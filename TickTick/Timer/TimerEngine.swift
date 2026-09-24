@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:16 PT
+// Last edited: 2026-09-24 15:17 PT
 
 import AppKit
 import Observation
@@ -49,6 +49,7 @@ final class TimerEngine {
                 MainActor.assumeIsolated { self?.recheckExpiry() }
             }
         }
+        service.timerHooks = self
     }
 
     /// The active timer, or nil when idle.
@@ -151,6 +152,26 @@ final class TimerEngine {
         service.toggleDone(task)
     }
 
+    // MARK: - Restore
+
+    /// Puts back a state that was saved before the app quit. Call it one time, at launch, before other operations.
+    ///
+    /// A running timer whose end passed while the app was quit goes to overtime and calls `onExpired`.
+    /// A saved overtime does not call it again, because that alarm fired before the quit.
+    /// When the task no longer exists, the engine stays idle and closes the session as `deleted`.
+    func restore(_ saved: TimerState) {
+        guard let timer = saved.activeTimer else {
+            return
+        }
+        guard service.task(withID: timer.taskID) != nil else {
+            closeSession(of: timer, outcome: .deleted)
+            setState(.idle, event: "restore without task")
+            return
+        }
+        setState(saved, event: "restore")
+        checkExpiry()
+    }
+
     // MARK: - Expiry
 
     /// Moves a running timer whose end date has passed to overtime, and calls `onExpired`.
@@ -240,5 +261,24 @@ final class TimerEngine {
         active \(timer.activeSeconds(at: now)) s, planned \(timer.plannedSeconds) s, \
         task \(timer.taskID, privacy: .public), session \(timer.sessionID, privacy: .public)
         """)
+    }
+}
+
+extension TimerEngine: TaskTimerHooks {
+    /// Checking the running task, anywhere in the app, is the same as Done.
+    /// `done()` itself goes idle before it checks the task, so this call does nothing then.
+    func taskWasCompleted(_ task: TaskItem) {
+        guard activeTimer?.taskID == task.id else {
+            return
+        }
+        finish(outcome: .done)
+    }
+
+    /// Deleting the running task stops its timer. The session ends as `deleted`.
+    func taskWillBeDeleted(_ task: TaskItem) {
+        guard activeTimer?.taskID == task.id else {
+            return
+        }
+        finish(outcome: .deleted)
     }
 }

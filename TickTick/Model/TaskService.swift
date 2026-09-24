@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:14 PT
+// Last edited: 2026-09-24 15:17 PT
 
 import Foundation
 import os
@@ -7,6 +7,15 @@ import SwiftData
 enum TaskServiceError: Error, Equatable {
     /// The Inbox can be renamed, but it cannot be deleted.
     case cannotDeleteInbox
+}
+
+/// Lets the timer engine react when a task is checked or deleted, wherever that happens.
+@MainActor
+protocol TaskTimerHooks: AnyObject {
+    /// Called after `toggleDone` checks a task.
+    func taskWasCompleted(_ task: TaskItem)
+    /// Called before a task is deleted, also when `deleteNote` deletes it with its note.
+    func taskWillBeDeleted(_ task: TaskItem)
 }
 
 /// Holds every rule for notes and tasks. Views and the timer engine change data only through this service.
@@ -18,6 +27,8 @@ final class TaskService {
     private static let logger = Logger(subsystem: AppDelegate.bundleIdentifier, category: "TaskService")
 
     let context: ModelContext
+    /// The timer engine sets itself here, so checking or deleting the running task also ends its timer.
+    weak var timerHooks: (any TaskTimerHooks)?
     private let now: () -> Date
 
     /// - Parameter now: the time source for `createdAt` and `completedAt`. Tests pass a fake one.
@@ -46,6 +57,9 @@ final class TaskService {
     func deleteNote(_ note: Note) throws {
         guard !note.isInbox else {
             throw TaskServiceError.cannotDeleteInbox
+        }
+        for task in note.tasks ?? [] {
+            timerHooks?.taskWillBeDeleted(task)
         }
         context.delete(note)
         save()
@@ -78,6 +92,7 @@ final class TaskService {
 
     /// Deletes the task. Its timer sessions stay, with no task.
     func deleteTask(_ task: TaskItem) {
+        timerHooks?.taskWillBeDeleted(task)
         context.delete(task)
         save()
     }
@@ -88,6 +103,9 @@ final class TaskService {
         task.isDone.toggle()
         task.completedAt = task.isDone ? now() : nil
         save()
+        if task.isDone {
+            timerHooks?.taskWasCompleted(task)
+        }
     }
 
     /// Moves the task so that it is at `index` in its note's open list after the move.

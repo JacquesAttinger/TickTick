@@ -185,6 +185,81 @@ struct TimerEngineTests {
         #expect(changes.last == .idle)
     }
 
+    // MARK: - Check and delete hooks
+
+    @Test("Checking the running task is the same as Done")
+    func checkingTheRunningTaskIsDone() throws {
+        let task = service.createTask(title: "A", in: inbox)
+        engine.start(task: task, seconds: 1500)
+        let sessionID = try #require(engine.activeTimer?.sessionID)
+        clock.advance(by: 100)
+
+        service.toggleDone(task)
+
+        #expect(engine.state == .idle)
+        #expect(task.isDone)
+        let session = try #require(service.session(withID: sessionID))
+        #expect(session.outcome == .done)
+        #expect(session.activeSeconds == 100)
+    }
+
+    @Test("Done checks the task one time, with no loop through the check hook")
+    func doneDoesNotLoopThroughTheHook() {
+        var changes: [TimerState] = []
+        let task = service.createTask(title: "A", in: inbox)
+        engine.start(task: task, seconds: 1500)
+        engine.stateDidChange = { changes.append($0) }
+
+        engine.done()
+
+        #expect(changes == [.idle])
+        #expect(task.isDone)
+        #expect(task.sessions?.count == 1)
+    }
+
+    @Test("Checking or deleting another task does not touch the timer")
+    func otherTasksDoNotTouchTheTimer() {
+        let running = service.createTask(title: "A", in: inbox)
+        let other = service.createTask(title: "B", in: inbox)
+        let third = service.createTask(title: "C", in: inbox)
+        engine.start(task: running, seconds: 1500)
+        let state = engine.state
+
+        service.toggleDone(other)
+        service.deleteTask(third)
+
+        #expect(engine.state == state)
+    }
+
+    @Test("Deleting the running task stops the timer and saves the session as deleted")
+    func deletingTheRunningTaskStopsTheTimer() throws {
+        let task = service.createTask(title: "A", in: inbox)
+        engine.start(task: task, seconds: 1500)
+        let sessionID = try #require(engine.activeTimer?.sessionID)
+        clock.advance(by: 50)
+
+        service.deleteTask(task)
+
+        #expect(engine.state == .idle)
+        let session = try #require(service.session(withID: sessionID))
+        #expect(session.outcome == .deleted)
+        #expect(session.activeSeconds == 50)
+        #expect(session.task == nil)
+    }
+
+    @Test("Deleting the note of the running task stops the timer and saves the session as deleted")
+    func deletingTheNoteStopsTheTimer() throws {
+        let note = service.createNote(title: "Errands")
+        let task = service.createTask(title: "Buy milk", in: note)
+        engine.start(task: task, seconds: 1500)
+        let sessionID = try #require(engine.activeTimer?.sessionID)
+
+        try service.deleteNote(note)
+
+        #expect(engine.state == .idle)
+        #expect(service.session(withID: sessionID)?.outcome == .deleted)
+    }
+
     // MARK: - Helpers
 
     private func sessionCount() throws -> Int {
