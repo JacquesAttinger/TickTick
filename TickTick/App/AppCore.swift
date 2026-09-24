@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:20 PT
+// Last edited: 2026-09-24 15:25 PT
 
 import Foundation
 import os
@@ -47,7 +47,7 @@ final class AppCore {
         do {
             let inbox = try modelStore.bootstrapInbox()
             DebugTimerLaunch.start(seconds: seconds, service: taskService, engine: timerEngine, inbox: inbox)
-            Self.logger.notice("Started the debug timer for \(seconds) s")
+            Self.logger.notice("Started the debug timer for \(seconds, format: .fixed(precision: 1)) s")
         } catch {
             Self.logger.error("No Inbox for the debug timer: \(error.localizedDescription, privacy: .public)")
         }

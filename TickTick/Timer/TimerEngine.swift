@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:17 PT
+// Last edited: 2026-09-24 15:25 PT
 
 import AppKit
 import Observation
@@ -257,8 +257,10 @@ final class TimerEngine {
         }
         Self.logger.notice("""
         \(event, privacy: .public): \(phase, privacy: .public), \
-        remaining \(timer.remaining(at: now)) s, overtime \(timer.overtime(at: now)) s, \
-        active \(timer.activeSeconds(at: now)) s, planned \(timer.plannedSeconds) s, \
+        remaining \(timer.remaining(at: now), format: .fixed(precision: 1)) s, \
+        overtime \(timer.overtime(at: now), format: .fixed(precision: 1)) s, \
+        active \(timer.activeSeconds(at: now), format: .fixed(precision: 1)) s, \
+        planned \(timer.plannedSeconds, format: .fixed(precision: 1)) s, \
         task \(timer.taskID, privacy: .public), session \(timer.sessionID, privacy: .public)
         """)
     }
