@@ -1,0 +1,5 @@
+# Last edited: 2026-09-22 12:45 PT
+*.xcodeproj
+build/
+DerivedData/
+.DS_Store
