@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:03 PT
+// Last edited: 2026-09-24 15:14 PT
 
 import Foundation
 import os
@@ -70,6 +70,12 @@ final class TaskService {
         save()
     }
 
+    /// Sets how long the task should take, or clears the estimate with nil.
+    func setEstimate(_ seconds: TimeInterval?, for task: TaskItem) {
+        task.estimateSeconds = seconds
+        save()
+    }
+
     /// Deletes the task. Its timer sessions stay, with no task.
     func deleteTask(_ task: TaskItem) {
         context.delete(task)
@@ -94,7 +100,45 @@ final class TaskService {
         save()
     }
 
+    // MARK: - Timer sessions
+
+    /// Opens a session for one run of the timer on `task`. The timer engine closes it with `closeSession`.
+    @discardableResult
+    func startSession(for task: TaskItem, plannedSeconds: TimeInterval, at date: Date) -> TimerSession {
+        let session = TimerSession(startedAt: date, plannedSeconds: plannedSeconds)
+        context.insert(session)
+        session.task = task
+        save()
+        return session
+    }
+
+    /// Ends the session. From then on, its `activeSeconds` count in `actualSeconds(for:)`.
+    /// `plannedSeconds` is the final planned time, with every extension.
+    func closeSession(
+        _ session: TimerSession,
+        endedAt: Date,
+        activeSeconds: TimeInterval,
+        plannedSeconds: TimeInterval,
+        outcome: SessionOutcome
+    ) {
+        session.endedAt = endedAt
+        session.activeSeconds = activeSeconds
+        session.plannedSeconds = plannedSeconds
+        session.outcome = outcome
+        save()
+    }
+
     // MARK: - Queries
+
+    /// The task with this ID, or nil when it does not exist (for example, after it was deleted).
+    func task(withID id: UUID) -> TaskItem? {
+        first(FetchDescriptor<TaskItem>(predicate: #Predicate { $0.id == id }))
+    }
+
+    /// The session with this ID, or nil when it does not exist.
+    func session(withID id: UUID) -> TimerSession? {
+        first(FetchDescriptor<TimerSession>(predicate: #Predicate { $0.id == id }))
+    }
 
     /// The note's open tasks, top to bottom.
     func openTasks(in note: Note) -> [TaskItem] {
@@ -148,13 +192,20 @@ final class TaskService {
     // MARK: - Storage
 
     private func lastNoteSortIndex() -> Int {
-        var descriptor = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.sortIndex, order: .reverse)])
+        first(FetchDescriptor<Note>(sortBy: [SortDescriptor(\.sortIndex, order: .reverse)]))?.sortIndex ?? -1
+    }
+
+    /// The first result of the fetch, or nil when there is none or the fetch fails.
+    private func first<Model: PersistentModel>(_ descriptor: FetchDescriptor<Model>) -> Model? {
+        var descriptor = descriptor
         descriptor.fetchLimit = 1
         do {
-            return try context.fetch(descriptor).first?.sortIndex ?? -1
+            return try context.fetch(descriptor).first
         } catch {
-            Self.logger.error("Fetching notes failed: \(error.localizedDescription, privacy: .public)")
-            return -1
+            let model = String(describing: Model.self)
+            let reason = error.localizedDescription
+            Self.logger.error("Fetching \(model, privacy: .public) failed: \(reason, privacy: .public)")
+            return nil
         }
     }
 
