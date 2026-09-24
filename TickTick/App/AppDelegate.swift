@@ -1,9 +1,10 @@
-// Last edited: 2026-09-24 16:43 PT
+// Last edited: 2026-09-24 17:08 PT
 
 import AppKit
 import os
 
-/// Owns the app's data and timer objects (`AppCore`) and the menu bar item (`StatusItemController`).
+/// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), and the alarm
+/// (`AlarmController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -18,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Nil in the test host, and when the data store cannot open.
     private(set) var core: AppCore?
     private(set) var statusItemController: StatusItemController?
+    private(set) var alarmController: AlarmController?
     /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
     private var fallbackStatusItem: NSStatusItem?
 
@@ -35,8 +37,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.core = core
         // Connect the timer's listeners (menu bar, alarm) to core.timerEngine here, before startTimer, so they
         // see the restored state and an expiry that happened while the app was quit.
+        // The alarm also becomes the notification delegate here, before the launch ends, so a banner button that
+        // launched the app reaches it.
+        let alarm = AlarmController.makeForApp(engine: core.timerEngine)
+        alarmController = alarm
         statusItemController = StatusItemController(engine: core.timerEngine)
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
+        alarm.startSyncingNotifications()
     }
 
     /// The menu of the fallback item. The normal item has the popover, with its own Quit button.
