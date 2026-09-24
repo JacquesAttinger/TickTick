@@ -51,6 +51,100 @@ final class TaskService {
         save()
     }
 
+    // MARK: - Tasks
+
+    /// Adds an open task at `index` in the note's open list, or at the end when `index` is nil.
+    /// An index out of range goes to the nearest end.
+    @discardableResult
+    func createTask(title: String, in note: Note, at index: Int? = nil) -> TaskItem {
+        let task = TaskItem(title: title, createdAt: now())
+        context.insert(task)
+        task.note = note
+        place(task, atOpenIndex: index ?? .max, in: note)
+        save()
+        return task
+    }
+
+    func renameTask(_ task: TaskItem, to title: String) {
+        task.title = title
+        save()
+    }
+
+    /// Deletes the task. Its timer sessions stay, with no task.
+    func deleteTask(_ task: TaskItem) {
+        context.delete(task)
+        save()
+    }
+
+    /// Checks the task (sets `completedAt`) or unchecks it (clears `completedAt`).
+    /// `sortIndex` does not change, so an unchecked task goes back to its old place in the open list.
+    func toggleDone(_ task: TaskItem) {
+        task.isDone.toggle()
+        task.completedAt = task.isDone ? now() : nil
+        save()
+    }
+
+    /// Moves the task so that it is at `index` in its note's open list after the move.
+    /// An index out of range goes to the nearest end.
+    func moveTask(_ task: TaskItem, to index: Int) {
+        guard let note = task.note else {
+            return
+        }
+        place(task, atOpenIndex: index, in: note)
+        save()
+    }
+
+    // MARK: - Queries
+
+    /// The note's open tasks, top to bottom.
+    func openTasks(in note: Note) -> [TaskItem] {
+        tasksInOrder(of: note).filter { !$0.isDone }
+    }
+
+    /// The note's done tasks, the most recently completed first.
+    func completedTasks(in note: Note) -> [TaskItem] {
+        tasksInOrder(of: note).filter(\.isDone).sorted { lhs, rhs in
+            (lhs.completedAt ?? .distantPast) > (rhs.completedAt ?? .distantPast)
+        }
+    }
+
+    /// The task's actual time: the sum of `activeSeconds` over all its timer sessions.
+    func actualSeconds(for task: TaskItem) -> TimeInterval {
+        (task.sessions ?? []).filter { !$0.isDeleted }.reduce(0) { $0 + $1.activeSeconds }
+    }
+
+    // MARK: - Order
+
+    /// All the note's tasks, open and done, by `sortIndex`. `createdAt` and `id` only break ties.
+    private func tasksInOrder(of note: Note) -> [TaskItem] {
+        (note.tasks ?? []).filter { !$0.isDeleted }.sorted { lhs, rhs in
+            if lhs.sortIndex != rhs.sortIndex {
+                return lhs.sortIndex < rhs.sortIndex
+            }
+            if lhs.createdAt != rhs.createdAt {
+                return lhs.createdAt < rhs.createdAt
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    /// Puts `task` just before the open task that will follow it, or at the very end of the note when
+    /// no open task follows. Then it numbers all the note's tasks 0…n−1.
+    /// Done tasks are numbered too, so each one stays between its old neighbors until it is unchecked.
+    private func place(_ task: TaskItem, atOpenIndex openIndex: Int, in note: Note) {
+        var ordered = tasksInOrder(of: note).filter { $0 !== task }
+        let open = ordered.filter { !$0.isDone }
+        let slot = min(max(openIndex, 0), open.count)
+        if slot < open.count, let position = ordered.firstIndex(where: { $0 === open[slot] }) {
+            ordered.insert(task, at: position)
+        } else {
+            ordered.append(task)
+        }
+        for (index, item) in ordered.enumerated() where item.sortIndex != index {
+            item.sortIndex = index
+        }
+    }
+
     // MARK: - Storage
 
     private func lastNoteSortIndex() -> Int {
