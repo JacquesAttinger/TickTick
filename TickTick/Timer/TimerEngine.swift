@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:25 PT
+// Last edited: 2026-09-24 15:27 PT
 
 import AppKit
 import Observation
@@ -8,7 +8,8 @@ import os
 ///
 /// It records each run as a `TimerSession` through `TaskService`. It stores dates, never a tick count,
 /// so the UI reads the time left from `state` and the clock, for example with a 1 s refresh.
-/// Every operation first calls `checkExpiry()`, so it never acts on a running timer whose end has passed.
+/// `start`, `pause`, and `extend` first call `checkExpiry()`, so they never act on a running timer whose end
+/// has passed. `stop` and `done` do not, so ending a timer just at zero does not also fire the alarm.
 @Observable
 @MainActor
 final class TimerEngine {
