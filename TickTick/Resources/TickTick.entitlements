@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Last edited: 2026-09-22 12:27 PT -->
+<!-- The time-sensitive notification key (com.apple.developer.usernotifications.time-sensitive) is left out:
+     the personal development team cannot sign it. See README "Known limits". -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>

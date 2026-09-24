@@ -1,0 +1,14 @@
+# Last edited: 2026-09-22 12:43 PT
+excluded:
+  - build
+  - DerivedData
+
+# warning matches error: SwiftLint's default warnings (400 lines, 50 lines) would
+# otherwise become errors under --strict and undercut the 500/75 limits.
+file_length:
+  warning: 500
+  error: 500
+
+function_body_length:
+  warning: 75
+  error: 75
