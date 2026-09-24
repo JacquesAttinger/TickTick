@@ -1,4 +1,4 @@
-# Last edited: 2026-09-22 12:43 PT
+# Last edited: 2026-09-24 14:58 PT
 excluded:
   - build
   - DerivedData
@@ -12,3 +12,8 @@ file_length:
 function_body_length:
   warning: 75
   error: 75
+
+# SwiftFormat adds a trailing comma to multi-line collection literals. SwiftLint's
+# default forbids it, so the two tools would block every such literal. Agree with SwiftFormat.
+trailing_comma:
+  mandatory_comma: true
