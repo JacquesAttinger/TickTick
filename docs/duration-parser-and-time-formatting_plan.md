@@ -1,6 +1,6 @@
 # TT-3: Duration parser and time formatting
 
-<!-- Last edited: 2026-09-22 12:19 PT -->
+<!-- Last edited: 2026-09-24 15:00 PT -->
 
 **TLDR:** We add two small Swift files with pure functions and no UI.
 One file reads a typed duration such as `25`, `1h30`, or `1:30` and turns it into a number of seconds, or refuses bad input.
@@ -16,7 +16,7 @@ Later issues use them: TT-5 (menu bar label and popover), TT-7 (quick-add durati
 ## Orientation
 
 The area is the TickTick macOS app described in `docs/planning.md`.
-The repo is almost empty: only `README.md` and `docs/planning.md` exist on `master`, because TT-1 (TOD-5, the project scaffold with `project.yml`, `Makefile`, SwiftLint, and the pre-commit hook) has not merged yet.
+TT-1 (TOD-5) has merged, so `master` has the project scaffold: `project.yml`, `Makefile`, SwiftLint, SwiftFormat, the pre-commit hook, and the `TickTickTests` target.
 The part this issue owns is the `TickTick/Time/` folder from the planned folder layout, which holds all duration and time text logic.
 The exact sections are two new files: `DurationParser.swift` with `parse(_:) -> TimeInterval?`, and `TimeFormatting.swift` with the countdown, overtime, human, clock, preview, and menu-bar-name-cut formatters.
 Product decisions 7 (duration input formats and live preview), 9 (menu bar text and the 24-character name cut), 10 (popover fields), and 12 (overtime `+2:13`) define the required output shapes.
@@ -41,7 +41,6 @@ The formatters are pure functions of their inputs; the clock and preview formatt
 ## Plan
 
 0. Sync the branch: `git fetch` and merge `origin/master` so the TT-1 scaffold (`project.yml`, `Makefile`, `.swiftlint.yml`, `.githooks/pre-commit`, `TickTickTests` target) is present.
-   If TT-1 (TOD-5) has still not merged, stop and report the unmet dependency instead of guessing at the scaffold.
 1. Add `TickTick/Time/DurationParser.swift` with `enum DurationParser` and `static func parse(_ input: String) -> TimeInterval?`.
    Grammar, applied to the normalized input in this order:
    - Colon form: `^(\d{1,2}):([0-5]\d)$` read as hours:minutes, so `1:30` is 90 minutes and `1:75` and `:30` fail.
@@ -53,11 +52,11 @@ The formatters are pure functions of their inputs; the clock and preview formatt
    - Valid: `25`, `25m`, `90 min`, `1h`, `1h30`, `1h 30m`, `1:30`, `1.5h`, `24h`, ` 25 M `, `1H30`, `0.5h`, each with its expected seconds.
    - Invalid: empty string, whitespace only, `0`, `0m`, `0:00`, `-5`, `25h`, `24h 1m`, `:30`, `1:75`, `abc`, `1h abc`, `30s`, `1.5`, `1.5m`, `1,5h`, `25 h 30`.
 3. Add `TickTick/Time/TimeFormatting.swift` with `enum TimeFormatting`:
-   - `countdown(_ seconds: TimeInterval) -> String`: `m:ss` under one hour (`24:13`, `0:59`), `h:mm:ss` from one hour (`1:02:03`).
-   - `overtime(_ seconds: TimeInterval) -> String`: `+` plus the countdown form (`+2:13`, `+1:02:03`).
+   - `countdown(_ seconds: TimeInterval) -> String`: `m:ss` under one hour (`24:13`, `0:59`), `h:mm:ss` from one hour (`1:02:03`). A part of a second rounds up, and negative input shows `0:00`.
+   - `overtime(_ seconds: TimeInterval) -> String`: `+` plus the countdown form (`+2:13`, `+1:02:03`). A part of a second rounds down.
    - `human(_ seconds: TimeInterval) -> String`: whole minutes as `45 min`, `1 h 30 min`, and bare `2 h` when minutes are zero; values round to the nearest minute with a floor of `1 min`.
-   - `clock(_ date: Date, locale: Locale, timeZone: TimeZone) -> String`: locale-aware short time (`3:42 PM`) via `Date.FormatStyle` with hour and minute.
-   - `preview(seconds: TimeInterval, now: Date, locale: Locale, timeZone: TimeZone) -> String`: `= 1 h 30 min · ends 3:42 PM`, where the end is `now + seconds`.
+   - `clock(_ date: Date, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String`: locale-aware short time (`3:42 PM`) via `Date.FormatStyle` with hour and minute.
+   - `preview(seconds: TimeInterval, now: Date, locale: Locale = .autoupdatingCurrent, timeZone: TimeZone = .autoupdatingCurrent) -> String`: `= 1 h 30 min · ends 3:42 PM`, where the end is `now + seconds`.
    - `menuBarName(_ name: String) -> String`: unchanged at 24 `Character`s or fewer; else the first 24 characters, trailing whitespace trimmed, plus `…`.
    Commit with the formatting tests from step 4.
 4. Add `TickTickTests/TimeFormattingTests.swift` with `Locale(identifier: "en_US")`, `TimeZone(identifier: "America/Los_Angeles")`, and a fixed `now`:
@@ -79,18 +78,20 @@ The formatters are pure functions of their inputs; the clock and preview formatt
 - **No seconds unit:** `30s` is rejected. Reason: decision 7 lists no seconds form, and every consumer works in whole minutes.
 - **`human` rounds to whole minutes with a floor of 1 min:** a decimal-hour input such as `0.01h` (36 s) displays as `1 min`. Reason: the shown formats (`45 min`, `1 h 30 min`) are minute-granular, and `0 min` next to a valid timer would look broken.
 - **Overtime over one hour is `+h:mm:ss`:** decision 12 only shows `+2:13`, so the long form reuses the countdown shape for consistency.
-- **`clock` and `preview` take explicit `Locale` and `TimeZone` parameters** (production callers pass `.current`). Reason: the acceptance criteria demand a fixed locale and fixed `now` in tests, and parameter injection is the smallest way to get it.
+- **`clock` and `preview` take `Locale` and `TimeZone` parameters** that default to `.autoupdatingCurrent`, so production callers can leave them out. Reason: the acceptance criteria demand a fixed locale and fixed `now` in tests, and parameter injection is the smallest way to get it.
+- **`clock` keeps the ICU output as it is:** en_US puts a narrow no-break space (U+202F), not a normal space, before `AM` or `PM`. Tests that compare clock or preview text must expect `"3:42\u{202F}PM"`. Reason: it is the system's locale-correct output, and it keeps `3:42` and `PM` on one line.
+- **`countdown` rounds a part of a second up, and `overtime` rounds it down:** the countdown shows `0:00` only when the time is up, and overtime starts at `+0:00`. Negative input shows `0:00` or `+0:00`. Reason: the timer engine (TT-4) gives fractional seconds from `endDate - now`, and this is how a countdown and a count-up clock normally read.
 - **Name cut counts Swift `Character`s** (grapheme clusters), and trailing whitespace before `…` is trimmed. Reason: cutting UTF-16 units could split an emoji in the menu bar, and `Some name …` with a space reads worse than `Some name…`.
-- **Step 0 merges `origin/master` for the TT-1 scaffold:** this branch was cut before TT-1 merged, so today it has no `Makefile`, `project.yml`, or test target. The implementation cannot verify anything without them, so it merges master first and stops with a clear report if TT-1 is still open.
+- **Step 0 merges `origin/master` for the TT-1 scaffold:** this branch was cut before TT-1 merged, so it had no `Makefile`, `project.yml`, or test target. The implementation merges master first to get them.
+- **SwiftLint now requires trailing commas in multi-line collection literals** (`trailing_comma: mandatory_comma: true` in `.swiftlint.yml`). Reason: SwiftFormat adds that comma, and SwiftLint's default forbids it, so the pre-commit hook blocked every multi-line array, such as the test tables in this issue.
 
 ## Out of scope found
 
 - **Seconds-granular input (`30s`, `1m30s`)** — not in decision 7; a possible later parser extension.
 - **Localized duration words** — `human` and `preview` hard-code `h`, `min`, `ends`, and `·`; only the clock time is locale-aware. Fine for a single-user English app, a follow-up if that changes.
-- **README is a stub** — `README.md` is one line; TT-1's scope already covers writing it.
 
 ## Verification
 
 - `make gen test lint` — exits 0; the new `DurationParserTests` and `TimeFormattingTests` suites run and pass.
-- `git log --oneline origin/master..HEAD` — shows this plan commit plus the implementation commits, nothing else.
+- `git log --oneline origin/master..HEAD` — shows this plan commit, the merge of `origin/master`, the lint config commit, and the implementation commits, nothing else.
 - Manual check: none; this issue is pure logic with no UI. The live preview and menu bar label are verified by hand in TT-5 and TT-7.
