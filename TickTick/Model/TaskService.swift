@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:03 PT
+// Last edited: 2026-09-24 15:17 PT
 
 import Foundation
 import os
@@ -7,6 +7,15 @@ import SwiftData
 enum TaskServiceError: Error, Equatable {
     /// The Inbox can be renamed, but it cannot be deleted.
     case cannotDeleteInbox
+}
+
+/// Lets the timer engine react when a task is checked or deleted, wherever that happens.
+@MainActor
+protocol TaskTimerHooks: AnyObject {
+    /// Called after `toggleDone` checks a task.
+    func taskWasCompleted(_ task: TaskItem)
+    /// Called before a task is deleted, also when `deleteNote` deletes it with its note.
+    func taskWillBeDeleted(_ task: TaskItem)
 }
 
 /// Holds every rule for notes and tasks. Views and the timer engine change data only through this service.
@@ -18,6 +27,8 @@ final class TaskService {
     private static let logger = Logger(subsystem: AppDelegate.bundleIdentifier, category: "TaskService")
 
     let context: ModelContext
+    /// The timer engine sets itself here, so checking or deleting the running task also ends its timer.
+    weak var timerHooks: (any TaskTimerHooks)?
     private let now: () -> Date
 
     /// - Parameter now: the time source for `createdAt` and `completedAt`. Tests pass a fake one.
@@ -47,6 +58,9 @@ final class TaskService {
         guard !note.isInbox else {
             throw TaskServiceError.cannotDeleteInbox
         }
+        for task in note.tasks ?? [] {
+            timerHooks?.taskWillBeDeleted(task)
+        }
         context.delete(note)
         save()
     }
@@ -70,8 +84,15 @@ final class TaskService {
         save()
     }
 
+    /// Sets how long the task should take, or clears the estimate with nil.
+    func setEstimate(_ seconds: TimeInterval?, for task: TaskItem) {
+        task.estimateSeconds = seconds
+        save()
+    }
+
     /// Deletes the task. Its timer sessions stay, with no task.
     func deleteTask(_ task: TaskItem) {
+        timerHooks?.taskWillBeDeleted(task)
         context.delete(task)
         save()
     }
@@ -82,6 +103,9 @@ final class TaskService {
         task.isDone.toggle()
         task.completedAt = task.isDone ? now() : nil
         save()
+        if task.isDone {
+            timerHooks?.taskWasCompleted(task)
+        }
     }
 
     /// Moves the task so that it is at `index` in its note's open list after the move.
@@ -94,7 +118,45 @@ final class TaskService {
         save()
     }
 
+    // MARK: - Timer sessions
+
+    /// Opens a session for one run of the timer on `task`. The timer engine closes it with `closeSession`.
+    @discardableResult
+    func startSession(for task: TaskItem, plannedSeconds: TimeInterval, at date: Date) -> TimerSession {
+        let session = TimerSession(startedAt: date, plannedSeconds: plannedSeconds)
+        context.insert(session)
+        session.task = task
+        save()
+        return session
+    }
+
+    /// Ends the session. From then on, its `activeSeconds` count in `actualSeconds(for:)`.
+    /// `plannedSeconds` is the final planned time, with every extension.
+    func closeSession(
+        _ session: TimerSession,
+        endedAt: Date,
+        activeSeconds: TimeInterval,
+        plannedSeconds: TimeInterval,
+        outcome: SessionOutcome
+    ) {
+        session.endedAt = endedAt
+        session.activeSeconds = activeSeconds
+        session.plannedSeconds = plannedSeconds
+        session.outcome = outcome
+        save()
+    }
+
     // MARK: - Queries
+
+    /// The task with this ID, or nil when it does not exist (for example, after it was deleted).
+    func task(withID id: UUID) -> TaskItem? {
+        first(FetchDescriptor<TaskItem>(predicate: #Predicate { $0.id == id }))
+    }
+
+    /// The session with this ID, or nil when it does not exist.
+    func session(withID id: UUID) -> TimerSession? {
+        first(FetchDescriptor<TimerSession>(predicate: #Predicate { $0.id == id }))
+    }
 
     /// The note's open tasks, top to bottom.
     func openTasks(in note: Note) -> [TaskItem] {
@@ -148,13 +210,20 @@ final class TaskService {
     // MARK: - Storage
 
     private func lastNoteSortIndex() -> Int {
-        var descriptor = FetchDescriptor<Note>(sortBy: [SortDescriptor(\.sortIndex, order: .reverse)])
+        first(FetchDescriptor<Note>(sortBy: [SortDescriptor(\.sortIndex, order: .reverse)]))?.sortIndex ?? -1
+    }
+
+    /// The first result of the fetch, or nil when there is none or the fetch fails.
+    private func first<Model: PersistentModel>(_ descriptor: FetchDescriptor<Model>) -> Model? {
+        var descriptor = descriptor
         descriptor.fetchLimit = 1
         do {
-            return try context.fetch(descriptor).first?.sortIndex ?? -1
+            return try context.fetch(descriptor).first
         } catch {
-            Self.logger.error("Fetching notes failed: \(error.localizedDescription, privacy: .public)")
-            return -1
+            let model = String(describing: Model.self)
+            let reason = error.localizedDescription
+            Self.logger.error("Fetching \(model, privacy: .public) failed: \(reason, privacy: .public)")
+            return nil
         }
     }
 
