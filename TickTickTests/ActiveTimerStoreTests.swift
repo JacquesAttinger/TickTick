@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:18 PT
+// Last edited: 2026-09-24 15:21 PT
 
 import Foundation
 import SwiftData
@@ -7,13 +7,9 @@ import Testing
 
 /// Saving the timer state and restoring it after a quit. Each "relaunch" builds a new engine and store
 /// on the same data and the same defaults key.
-///
-/// All tests share one defaults suite (one plist file in `~/Library/Preferences`), and each test uses its own key.
 @MainActor
 final class ActiveTimerStoreTests {
-    private nonisolated static let suiteName = "com.jacquesattinger.TickTickTests"
-    private let key = "activeTimer.\(UUID().uuidString)"
-    private let defaults: UserDefaults
+    private let saved: TestTimerDefaults
     private let clock: TestClock
     private let store: ModelStore
     private let service: TaskService
@@ -23,14 +19,10 @@ final class ActiveTimerStoreTests {
     init() throws {
         let clock = TestClock()
         self.clock = clock
-        defaults = try #require(UserDefaults(suiteName: Self.suiteName))
+        saved = try TestTimerDefaults()
         store = try ModelStore(inMemory: true)
         service = TaskService(context: store.context, now: { clock.now })
         task = try service.createTask(title: "Write report", in: store.bootstrapInbox())
-    }
-
-    deinit {
-        UserDefaults(suiteName: Self.suiteName)?.removeObject(forKey: key)
     }
 
     // MARK: - Save and load
@@ -40,10 +32,10 @@ final class ActiveTimerStoreTests {
         let engine = launch()
         engine.start(task: task, seconds: 1500)
 
-        let json = try #require(defaults.string(forKey: key))
+        let json = try #require(saved.savedText)
         #expect(json.contains("running"))
         #expect(json.contains(task.id.uuidString))
-        #expect(makeStore().load() == engine.state)
+        #expect(saved.makeStore().load() == engine.state)
     }
 
     @Test("Going idle removes the saved state")
@@ -53,16 +45,16 @@ final class ActiveTimerStoreTests {
 
         engine.stop()
 
-        #expect(defaults.object(forKey: key) == nil)
-        #expect(makeStore().load() == .idle)
+        #expect(saved.savedText == nil)
+        #expect(saved.makeStore().load() == .idle)
     }
 
     @Test("Unreadable saved text loads as idle and is dropped")
     func unreadableTextLoadsAsIdle() {
-        defaults.set("{not json", forKey: key)
+        saved.defaults.set("{not json", forKey: saved.key)
 
-        #expect(makeStore().load() == .idle)
-        #expect(defaults.object(forKey: key) == nil)
+        #expect(saved.makeStore().load() == .idle)
+        #expect(saved.savedText == nil)
     }
 
     // MARK: - Restore after quit
@@ -94,7 +86,7 @@ final class ActiveTimerStoreTests {
 
         #expect(second.activeTimer?.phase == .overtime(since: end))
         #expect(expired.count == 1)
-        #expect(makeStore().load() == second.state)
+        #expect(saved.makeStore().load() == second.state)
 
         clock.advance(by: 30)
         let third = launch()
@@ -131,7 +123,7 @@ final class ActiveTimerStoreTests {
         let second = launch()
 
         #expect(second.state == .idle)
-        #expect(defaults.object(forKey: key) == nil)
+        #expect(saved.savedText == nil)
         let session = try #require(service.session(withID: sessionID))
         #expect(session.outcome == .deleted)
         #expect(session.activeSeconds == 100)
@@ -139,17 +131,13 @@ final class ActiveTimerStoreTests {
 
     // MARK: - Helpers
 
-    private func makeStore() -> ActiveTimerStore {
-        ActiveTimerStore(defaults: defaults, key: key)
-    }
-
     /// Builds an engine and a store as the app does at launch, and restores the saved state.
     private func launch() -> TimerEngine {
         let engine = TimerEngine(service: service, clock: clock)
         engine.onExpired = { [weak self] timer in
             self?.expired.append(timer)
         }
-        makeStore().restore(into: engine)
+        saved.makeStore().restore(into: engine)
         return engine
     }
 }
