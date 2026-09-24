@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:33 PT
+// Last edited: 2026-09-24 16:43 PT
 
 import AppKit
 import Foundation
@@ -82,6 +82,14 @@ struct StatusItemLabelTests {
         #expect(font.pointSize == NSFont.menuBarFont(ofSize: 0).pointSize)
         let widths = Set((0 ... 9).map { NSAttributedString(string: "\($0)", attributes: [.font: font]).size().width })
         #expect(widths.count == 1)
+    }
+
+    @Test("Running and paused labels have the same width, so a pause does not move the item")
+    func pauseKeepsTheWidth() {
+        let running = StatusItemLabel.make(for: timer(.running(endDate: now + 1453)), taskName: name, now: now)
+        let paused = StatusItemLabel.make(for: timer(.paused(remaining: 1453)), taskName: name, now: now)
+
+        #expect(abs(running.size().width - paused.size().width) < 0.01)
     }
 
     // MARK: - Refresh timing

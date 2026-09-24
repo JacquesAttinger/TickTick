@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:33 PT
+// Last edited: 2026-09-24 16:43 PT
 
 import AppKit
 
@@ -21,10 +21,19 @@ enum StatusItemLabel {
 
     /// The status item title for `timer` (nil when idle) at `now`.
     static func make(for timer: ActiveTimer?, taskName: String, now: Date) -> NSAttributedString {
-        NSAttributedString(
+        let title = NSMutableAttributedString(
             string: text(for: timer, taskName: taskName, now: now),
             attributes: [.font: font, .foregroundColor: color(for: timer)]
         )
+        // `⏸` is narrower than `⏱`. Extra space after the narrower symbol keeps the width the same, so a pause
+        // does not move the item or the popover under it.
+        if timer != nil, let symbol = title.string.first.map(String.init) {
+            let padding = symbolWidth(of: [timerSymbol, pausedSymbol]) - symbolWidth(of: [symbol])
+            if padding > 0 {
+                title.addAttribute(.kern, value: padding, range: NSRange(location: 0, length: symbol.utf16.count))
+            }
+        }
+        return title
     }
 
     /// The title text. A task with an empty name shows only the symbol and the time.
@@ -39,6 +48,11 @@ enum StatusItemLabel {
         }
         let name = TimeFormatting.menuBarName(taskName.trimmingCharacters(in: .whitespacesAndNewlines))
         return name.isEmpty ? "\(symbol) \(time)" : "\(symbol) \(name) · \(time)"
+    }
+
+    /// The width of the widest of `symbols` in the label font.
+    private static func symbolWidth(of symbols: [String]) -> CGFloat {
+        symbols.map { NSAttributedString(string: $0, attributes: [.font: font]).size().width }.max() ?? 0
     }
 
     /// Dynamic colors, so the text follows the menu bar's light or dark look.
