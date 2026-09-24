@@ -1,6 +1,6 @@
 # TT-5: Menu bar item and popover
 
-<!-- Last edited: 2026-09-22 14:21 CDT -->
+<!-- Last edited: 2026-09-24 16:44 PT -->
 
 **TLDR:** We give the timer a face.
 The `⏱` in the menu bar starts to show the running task and its time, turns red when time is up, and dims when the timer is paused.
@@ -10,17 +10,19 @@ A click on it opens a small panel (a popover) with the task details and buttons 
 
 Click the `⏱` item in the macOS menu bar at the top right of the screen.
 The item itself shows the timer state as text; the click opens the popover with the controls.
-To see the active state without the quick-add UI (which TT-7 builds), start the app with a debug timer: `open -a TickTick --args -debugStartTimerSeconds 60`.
+To see the active state without the quick-add UI (which TT-7 builds), quit TickTick and start the app with a debug timer: `open build/Build/Products/Debug/TickTick.app --args -debugStartTimerSeconds 60`.
 
 ## Orientation
 
 The area is the TickTick macOS menu bar app described in `docs/planning.md`.
-On `master` today only `README.md` and `docs/planning.md` exist, because the dependency chain TT-1 → TT-2/TT-3 → TT-4 is still in open PRs on parallel branches.
+TT-1, TT-2, and TT-3 are on `origin/master`.
+This branch also merges the code branch of TT-4 (TOD-8, the timer engine, PR #15), so its code is present.
 The part this issue owns is the `TickTick/MenuBar/` folder from the planned folder layout: everything the user sees in the menu bar and in the popover.
 The exact sections are two planned files: `StatusItemController.swift` (the `NSStatusItem` label per timer state, the 1 s refresh, and the popover toggle) and `TimerPopoverView.swift` (the SwiftUI content of the popover, active and idle).
 Product decisions 9 (menu bar text), 10 (popover content and buttons), and 12 (red overtime label that counts up) define the required look, and "Technical approach → Menu bar" mandates AppKit `NSStatusItem` + `NSPopover` hosting SwiftUI instead of SwiftUI `MenuBarExtra`.
 TT-1's `AppDelegate` only shows a static `⏱` with a "Quit TickTick" menu; this issue replaces that stub.
-The state comes from TT-4's `TimerEngine` (`@Observable`, `@MainActor`, states idle / running / paused / overtime, operations `pause`, `resume`, `extend(seconds:)`, `stop`, `done`), and the text comes from TT-3's `TimeFormatting` (`countdown`, `overtime`, `human`, `clock`, `menuBarName`) and `DurationParser`.
+The stub stays only as a fallback when the data store cannot open.
+The state comes from TT-4's `TimerEngine` (`@Observable`, `@MainActor`, states idle / running / paused / overtime, operations `pause`, `resume`, `extend(seconds:)`, `stop`, `done`), and the text comes from TT-3's `TimeFormatting` (`countdown`, `overtime`, `human`, `clock`, `menuBarName`, plus a new `day`) and `DurationParser`.
 
 ## What is wrong and why
 
@@ -33,14 +35,18 @@ The shape of the fix is:
 3. `TimerPopoverView` renders the active state (task facts, progress, time buttons, Pause/Resume, Stop, Done, and an inline "+custom" field that uses `DurationParser`) or the idle state ("No timer running", the ⌃⌥Space hint), with "Quit TickTick" always present.
 4. `AppDelegate` drops its TT-1 stub status item and instantiates `StatusItemController` instead.
 
-## Likely touched files
+## Touched files
 
-- `TickTick/MenuBar/StatusItemLabel.swift` — new; pure builder `make(for:) -> NSAttributedString` for the four label states, plus the shared monospaced-digit font logic.
+- `TickTick/MenuBar/StatusItemLabel.swift` — new; pure builder `make(for:taskName:now:) -> NSAttributedString` for the four label states, the monospaced-digit font, and `nextChange(for:after:)` for the refresh timing.
 - `TickTick/MenuBar/StatusItemController.swift` — new; owns `NSStatusItem` + `NSPopover`, the 1 s refresh timer, observation of `TimerEngine`, and the click toggle.
-- `TickTick/MenuBar/TimerPopoverView.swift` — new; SwiftUI popover content, active and idle states, all buttons, the inline custom-extend field.
+  It also holds `PopoverClock`, the time the popover shows.
+- `TickTick/MenuBar/TimerPopoverView.swift` — new; SwiftUI popover content, active and idle states, the action buttons, and the footer.
+- `TickTick/MenuBar/ExtendControls.swift` — new; the `+1m +5m +10m +custom` row and the inline custom field (`CustomExtendEntry`).
+- `TickTick/MenuBar/TimerPopoverModel.swift` — new; the popover's derived display values.
+- `TickTick/Time/TimeFormatting.swift` — adds `day(_:)` (`Thu 24 Sep`).
 - `TickTick/App/AppDelegate.swift` — replaces the TT-1 stub status item with `StatusItemController`.
-- `TickTickTests/StatusItemLabelTests.swift` — new; label text, truncation, color, and font per state.
-- `TickTickTests/TimerPopoverModelTests.swift` — new; the popover's derived display values (progress fraction, percent text, started/ends line, estimate line).
+- `TickTickTests/StatusItemLabelTests.swift`, `TimerPopoverModelTests.swift`, `CustomExtendEntryTests.swift` — new.
+  `TimeFormattingTests.swift` and `ScaffoldTests.swift` — updated.
 - `docs/menu-bar-item-and-popover_plan.md` — this plan.
 
 ## Plan
@@ -48,7 +54,7 @@ The shape of the fix is:
 0. **Sync the branch.**
    Run `git fetch` and merge `origin/master` into this branch.
    Confirm the TT-4 code is present (`TickTick/Timer/TimerEngine.swift`, the `-debugStartTimerSeconds` launch argument) and that `make gen build test lint` passes before any new code.
-   If TT-4 (TOD-8) has not merged yet, stop and report the unmet dependency instead of coding against a guessed API.
+   TT-4 (TOD-8) is still in PR #15, so this branch merges its code branch `jacques/tod-8-tt-4-timer-engine-code`.
    If TT-4's real API differs from the shape assumed here (names, event delivery), adapt to the real API and note the deltas in the PR description.
 1. **Label builder commit.**
    Add `TickTick/MenuBar/StatusItemLabel.swift`: a caseless `enum StatusItemLabel` with `static func make(for state: ...) -> NSAttributedString`, taking the engine state plus the task name and remaining/overtime seconds.
@@ -73,7 +79,7 @@ The shape of the fix is:
    - "+custom" flips an inline `TextField` into the row; input goes through `DurationParser.parse`, Return extends, Esc or an outside click cancels, and an unparseable value disables the confirm and shows the field in an error tint.
    - Idle: "No timer running", the dimmed hint "New task: ⌃⌥Space", and a disabled placeholder area for "Open Notes" (TT-8) and "Settings…" (TT-11).
    - A footer with "Quit TickTick" (`NSApplication.terminate`) in both states, because the app usually has no Dock icon.
-   Extract the derived display values into a small pure struct `TimerPopoverModel` in the same file (progress fraction clamped to 0…1, percent text, started/ends text, estimate/date text), and add `TickTickTests/TimerPopoverModelTests.swift` with a fixed locale, time zone, and `now`.
+   Extract the derived display values into a small pure struct `TimerPopoverModel` in its own file (progress fraction clamped to 0…1, percent text, started/ends text, estimate/date text), and add `TickTickTests/TimerPopoverModelTests.swift` with a fixed locale, time zone, and `now`.
    All time text uses monospaced digits so nothing shifts while counting.
 4. **Manual verification and polish commit.**
    Run the full Verification list below on the installed app and fix what looks wrong: spacing, truncation, dark-mode colors, popover arrow position, and label width jitter.
@@ -105,20 +111,50 @@ The shape of the fix is:
   Reason: a 1 s cadence is what the issue asks for; `.common` mode keeps it ticking during event tracking, and Observation removes the up-to-1-s lag after a button press.
 - **No new keyboard shortcuts in the popover.**
   Reason: Space / D / S / 1 / 5 / 0 are explicitly TT-11's scope.
-- **Step 0 merges `origin/master` and hard-stops if TT-4 is absent.**
-  Reason: every named API here (`TimerEngine`, `TimeFormatting`, `DurationParser`, the debug launch argument) lives in unmerged sibling PRs today; coding against a guess would produce an unbuildable branch.
+- **Step 0 merges `origin/master` and the TT-4 code branch.**
+  Reason: TT-4 is still in PR #15; the named APIs (`TimerEngine`, the debug launch argument) exist only there.
+
+### Decisions made during the work
+
+- **`Open Notes` and `Settings…` sit in the footer of both popover states, next to Quit,** not only in the idle state.
+  Reason: you want Settings while a timer runs too, and one footer keeps the layout the same in both states.
+- **The popover model and the extend row are in their own files** (`TimerPopoverModel.swift`, `ExtendControls.swift`).
+  Reason: small files are easier to test and read; sources are globbed.
+- **The refresh fires just after each shown second changes** (`StatusItemLabel.nextChange`), not at a random phase.
+  Reason: a free-running 1 s timer can show a second up to 1 s late.
+  The popover time comes from the same tick (`PopoverClock`), so the label and the popover always agree.
+- **The paused symbol gets extra space after it, so `⏸` takes the same width as `⏱`.**
+  Reason: `⏸` is 2 pt narrower, so a pause moved the item and the popover arrow.
+- **The popover shows a caption above the big time (`Time left`, `Paused`, `Over time`), dims the time and the bar while paused, and says `Ended` in overtime.**
+  Reason: the state must be clear without the menu bar; `Ends 3:25 PM` is wrong once that time is past.
+- **Pause is disabled in overtime.**
+  Reason: the engine cannot pause in overtime; decision 12 ends overtime with Done, an extension, or Stop.
+- **The buttons share the row width; `+custom` keeps its own width.**
+  Reason: four equal buttons cut `+custom` to `+cust…` at 300 pt.
+- **When the data store cannot open, the app keeps the TT-1 `⏱` item with a Quit menu.**
+  Reason: without it, a store error leaves an app with no UI that you cannot quit.
+- **The popover closes and reopens on the current Space when you click the item after a Space change.**
+  Reason: a popover left open on another Space made the next click only close it, out of sight.
+- **A click on the item activates the app with `NSApp.activate(ignoringOtherApps:)`; an accessibility press does not.**
+  Reason: the `+custom` field needs key presses, so the app must be active.
+  macOS refused the newer `activate()` for a status item click in the E2E test, and the older call worked in a normal Space and over a full-screen app.
+  An activation without a click made the transient popover close at once, so an accessibility press opens the popover without it (the buttons still work).
+- **The `+custom` field takes focus 50 ms after it appears.**
+  Reason: focus set in `onAppear` or at once in `.task` was lost; the field was not yet in the window.
 
 ## Out of scope found
 
 - **TT-1 stub status item has no popover** — expected; this issue replaces it, nothing to file.
 - **Right-click on the status item does nothing** — a right-click menu (for example Quit) is a common menu bar convention; not in any decision, possible polish for TT-13.
 - **Global ⌃⌥T popover toggle** — the reason `NSStatusItem` was chosen over `MenuBarExtra`; TT-11 owns it.
-- **Overtime tint for the whole popover time display beyond the label** — decision 12 only covers the menu bar and the notification; TT-13's polish pass can revisit.
+  Found in E2E: over a full-screen app the menu bar is hidden, and a popover opened without a click (as a hotkey would) can appear off screen, next to the hidden item.
+  TT-11 must test that case.
+- **Overtime tint for the whole popover time display beyond the label** — done here after all: in overtime the popover time and the bar are red too, to match the label.
 
 ## Verification
 
 1. `make gen test lint` — exits 0; `StatusItemLabelTests` and `TimerPopoverModelTests` pass.
-2. `make install`, then `open -a TickTick --args -debugStartTimerSeconds 60` — the label shows `⏱ Debug timer · 0:5x` counting down with no width jitter.
+2. `make build`, quit TickTick, then `open build/Build/Products/Debug/TickTick.app --args -debugStartTimerSeconds 60` — the label shows `⏱ Debug timer · 0:5x` counting down with no width jitter.
 3. Drive every state from the popover: Pause (label `⏸`, dimmed, frozen) → Resume → `+5m` → wait past zero (label red `+0:0x` counting up) → `+1m` (back to running) → `+custom` with `2m` → Done (timer ends, task checked).
 4. Relaunch with the debug argument and verify Stop as the second ending path, and that the idle popover then shows "No timer running", the ⌃⌥Space hint, and Quit.
 5. Long-name check: rename the debug task in code or start one with a name over 24 characters and confirm the `…` cut in the label.
