@@ -1,9 +1,9 @@
-// Last edited: 2026-09-24 15:20 PT
+// Last edited: 2026-09-24 16:43 PT
 
 import AppKit
 import os
 
-/// Owns the menu bar status item and the app's data and timer objects (`AppCore`).
+/// Owns the app's data and timer objects (`AppCore`) and the menu bar item (`StatusItemController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -15,26 +15,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    private var statusItem: NSStatusItem?
     /// Nil in the test host, and when the data store cannot open.
     private(set) var core: AppCore?
+    private(set) var statusItemController: StatusItemController?
+    /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
+    private var fallbackStatusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_: Notification) {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "⏱"
-        item.menu = makeMenu()
-        statusItem = item
-
-        guard !Self.isRunningUnitTests, let core = Self.openCore() else {
+        guard !Self.isRunningUnitTests else {
+            return
+        }
+        guard let core = Self.openCore() else {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            item.button?.title = StatusItemLabel.timerSymbol
+            item.menu = makeFallbackMenu()
+            fallbackStatusItem = item
             return
         }
         self.core = core
         // Connect the timer's listeners (menu bar, alarm) to core.timerEngine here, before startTimer, so they
         // see the restored state and an expiry that happened while the app was quit.
+        statusItemController = StatusItemController(engine: core.timerEngine)
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
     }
 
-    func makeMenu() -> NSMenu {
+    /// The menu of the fallback item. The normal item has the popover, with its own Quit button.
+    func makeFallbackMenu() -> NSMenu {
         let menu = NSMenu()
         let quitItem = NSMenuItem(
             title: "Quit TickTick",

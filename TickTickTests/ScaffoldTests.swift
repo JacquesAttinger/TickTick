@@ -1,4 +1,4 @@
-// Last edited: 2026-09-22 12:36 PT
+// Last edited: 2026-09-24 16:43 PT
 
 import AppKit
 import Testing
@@ -10,8 +10,8 @@ struct ScaffoldTests {
         #expect(Bundle(for: AppDelegate.self).bundleIdentifier == AppDelegate.bundleIdentifier)
     }
 
-    @Test func statusMenuHasOnlyAQuitItemWiredToTerminate() throws {
-        let menu = AppDelegate().makeMenu()
+    @Test func fallbackMenuHasOnlyAQuitItemWiredToTerminate() throws {
+        let menu = AppDelegate().makeFallbackMenu()
 
         #expect(menu.items.count == 1)
         let quitItem = try #require(menu.items.first)
