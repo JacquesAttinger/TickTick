@@ -1,6 +1,6 @@
-// Last edited: 2026-09-24 15:13 PT
+// Last edited: 2026-09-24 15:16 PT
 
-import Foundation
+import AppKit
 import Observation
 import os
 
@@ -8,6 +8,7 @@ import os
 ///
 /// It records each run as a `TimerSession` through `TaskService`. It stores dates, never a tick count,
 /// so the UI reads the time left from `state` and the clock, for example with a 1 s refresh.
+/// Every operation first calls `checkExpiry()`, so it never acts on a running timer whose end has passed.
 @Observable
 @MainActor
 final class TimerEngine {
@@ -21,15 +22,33 @@ final class TimerEngine {
 
     private(set) var state: TimerState = .idle
 
+    /// Called one time when a timer enters overtime, with the timer in its new overtime phase.
+    /// This also happens on wake from sleep and on a restore after the end passed while the app was quit.
+    @ObservationIgnored var onExpired: ((ActiveTimer) -> Void)?
     /// Called after every state change. `ActiveTimerStore` saves the state here.
     @ObservationIgnored var stateDidChange: ((TimerState) -> Void)?
 
     let service: TaskService
     let clock: any TimerClock
+    private let schedulesExpiry: Bool
+    @ObservationIgnored private var expiryTimer: Timer?
+    @ObservationIgnored private var wakeObserver: (any NSObjectProtocol)?
 
-    init(service: TaskService, clock: any TimerClock) {
+    /// - Parameter schedulesExpiry: true in the app. The engine then arms a wall-clock `Timer` for the end date
+    ///   and checks again when the Mac wakes. Tests leave it false and call `checkExpiry()` themselves.
+    init(service: TaskService, clock: any TimerClock, schedulesExpiry: Bool = false) {
         self.service = service
         self.clock = clock
+        self.schedulesExpiry = schedulesExpiry
+        if schedulesExpiry {
+            wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.didWakeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.recheckExpiry() }
+            }
+        }
     }
 
     /// The active timer, or nil when idle.
@@ -48,6 +67,7 @@ final class TimerEngine {
     /// confirmation, unless `replacing` is true: then the old session ends as `replaced` first.
     @discardableResult
     func start(task: TaskItem, seconds: TimeInterval, replacing: Bool = false) -> StartResult {
+        checkExpiry()
         if let current = activeTimer {
             guard replacing else {
                 return .needsConfirmation(current: current)
@@ -71,6 +91,7 @@ final class TimerEngine {
 
     /// Pauses a running timer and keeps its remaining time. Does nothing in any other phase.
     func pause() {
+        checkExpiry()
         guard var timer = activeTimer, case let .running(endDate) = timer.phase else {
             return
         }
@@ -92,6 +113,28 @@ final class TimerEngine {
         setState(.active(timer), event: "resume")
     }
 
+    /// Adds time. While running or paused, the time left grows. In overtime, the timer runs again
+    /// with `seconds` left, and the overtime so far stays in the active time.
+    func extend(seconds: TimeInterval) {
+        checkExpiry()
+        guard var timer = activeTimer, seconds > 0 else {
+            return
+        }
+        let now = clock.now
+        switch timer.phase {
+        case let .running(endDate):
+            timer.phase = .running(endDate: endDate.addingTimeInterval(seconds))
+            timer.plannedSeconds += seconds
+        case let .paused(remaining):
+            timer.phase = .paused(remaining: remaining + seconds)
+            timer.plannedSeconds += seconds
+        case .overtime:
+            timer.phase = .running(endDate: now.addingTimeInterval(seconds))
+            timer.plannedSeconds = timer.activeSeconds(at: now) + seconds
+        }
+        setState(.active(timer), event: "extend")
+    }
+
     /// Ends the timer and keeps the task open. The session ends as `stopped`.
     func stop() {
         finish(outcome: .stopped)
@@ -106,6 +149,41 @@ final class TimerEngine {
             return
         }
         service.toggleDone(task)
+    }
+
+    // MARK: - Expiry
+
+    /// Moves a running timer whose end date has passed to overtime, and calls `onExpired`.
+    /// The phase change makes sure that this happens only one time for each end date.
+    func checkExpiry() {
+        guard var timer = activeTimer, case let .running(endDate) = timer.phase, clock.now >= endDate else {
+            return
+        }
+        timer.phase = .overtime(since: endDate)
+        setState(.active(timer), event: "expired")
+        onExpired?(timer)
+    }
+
+    /// Checks expiry, then arms the timer again. The wall-clock `Timer` and the wake observer call this.
+    /// A `Timer` can fire a little early, or late after sleep, so it is armed again after each check.
+    private func recheckExpiry() {
+        checkExpiry()
+        updateExpiryTimer()
+    }
+
+    /// Arms one `Timer` for the end date of a running timer, and cancels it in every other state.
+    private func updateExpiryTimer() {
+        expiryTimer?.invalidate()
+        expiryTimer = nil
+        guard schedulesExpiry, case let .running(endDate) = activeTimer?.phase else {
+            return
+        }
+        let timer = Timer(fire: endDate, interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.recheckExpiry() }
+        }
+        timer.tolerance = 0.1
+        RunLoop.main.add(timer, forMode: .common)
+        expiryTimer = timer
     }
 
     // MARK: - State changes
@@ -139,6 +217,7 @@ final class TimerEngine {
     private func setState(_ newState: TimerState, event: String) {
         state = newState
         log(event)
+        updateExpiryTimer()
         stateDidChange?(newState)
     }
 
