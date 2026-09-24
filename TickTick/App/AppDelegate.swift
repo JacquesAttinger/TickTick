@@ -6,7 +6,7 @@ import os
 /// Owns the app's data and timer objects (`AppCore`) and the menu bar item (`StatusItemController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let bundleIdentifier = "com.jacquesattinger.TickTick"
+    nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
     private static let logger = Logger(subsystem: bundleIdentifier, category: "AppDelegate")
 
     /// True when this process hosts the unit tests. The test host must not open the real store or restore the
