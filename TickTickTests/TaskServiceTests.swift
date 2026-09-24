@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 14:58 PT
+// Last edited: 2026-09-24 15:04 PT
 
 import Foundation
 import SwiftData
@@ -7,7 +7,7 @@ import Testing
 
 /// Returns a time one second later on each call, so every created or completed item has a clear order.
 @MainActor
-final class SteppingClock {
+private final class SteppingClock {
     private var current = Date(timeIntervalSinceReferenceDate: 0)
 
     func next() -> Date {
@@ -136,12 +136,26 @@ struct TaskServiceTests {
         #expect(sessions.first?.task == nil)
     }
 
-    @Test("Every operation saves at once")
-    func operationsSaveAtOnce() {
-        let task = service.createTask(title: "A", in: inbox)
+    @Test("Every change is saved at once")
+    func everyChangeIsSavedAtOnce() throws {
+        let note = service.createNote(title: "Errands")
+        #expect(!store.context.hasChanges)
+        service.renameNote(note, to: "Chores")
         #expect(!store.context.hasChanges)
 
+        let task = service.createTask(title: "A", in: note)
+        service.createTask(title: "B", in: note)
+        #expect(!store.context.hasChanges)
+        service.renameTask(task, to: "A2")
+        #expect(!store.context.hasChanges)
+        service.moveTask(task, to: 1)
+        #expect(!store.context.hasChanges)
         service.toggleDone(task)
+        #expect(!store.context.hasChanges)
+        service.deleteTask(task)
+        #expect(!store.context.hasChanges)
+
+        try service.deleteNote(note)
         #expect(!store.context.hasChanges)
     }
 
@@ -188,7 +202,7 @@ struct TaskServiceTests {
         #expect(openTitles(in: inbox) == ["A", "B", "C", "D"])
     }
 
-    @Test("uncheck returns the task between its old neighbors after other tasks moved")
+    @Test("uncheck returns the task between its old neighbors after other tasks moved or were added")
     func uncheckAfterOtherChanges() throws {
         for title in ["A", "B", "C", "D"] {
             service.createTask(title: title, in: inbox)
@@ -275,6 +289,19 @@ struct TaskServiceTests {
 
         #expect(service.actualSeconds(for: task) == 480.5)
         #expect(service.actualSeconds(for: otherTask) == 1000)
+    }
+
+    @Test("A session stores its outcome as text")
+    func sessionOutcomeRoundTrips() {
+        let session = TimerSession()
+        #expect(session.outcome == nil)
+
+        session.outcome = .deleted
+        #expect(session.outcomeRaw == "deleted")
+        #expect(session.outcome == .deleted)
+
+        session.outcomeRaw = "unknown"
+        #expect(session.outcome == nil)
     }
 
     // MARK: - Helpers
