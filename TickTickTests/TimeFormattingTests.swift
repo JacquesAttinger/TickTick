@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 14:59 PT
+// Last edited: 2026-09-24 15:40 PT
 
 import Foundation
 import Testing
@@ -72,6 +72,14 @@ struct TimeFormattingTests {
         #expect(TimeFormatting.clock(now, locale: locale, timeZone: timeZone) == "3:42\(narrowSpace)PM")
         #expect(TimeFormatting.clock(now, locale: Locale(identifier: "de_DE"), timeZone: timeZone) == "15:42")
         #expect(TimeFormatting.clock(now, locale: locale, timeZone: .gmt) == "10:42\(narrowSpace)PM")
+    }
+
+    @Test func dayShowsTheWeekdayTheDayAndTheMonth() throws {
+        #expect(TimeFormatting.day(now, locale: locale, timeZone: timeZone) == "Thu 24 Sep")
+        #expect(TimeFormatting.day(now, locale: Locale(identifier: "de_DE"), timeZone: timeZone) == "Do. 24 Sept.")
+        // 3:42 PM in Los Angeles is already the next day in Tokyo.
+        let tokyo = try #require(TimeZone(identifier: "Asia/Tokyo"))
+        #expect(TimeFormatting.day(now, locale: locale, timeZone: tokyo) == "Fri 25 Sep")
     }
 
     @Test func previewShowsTheDurationAndTheEndTime() {

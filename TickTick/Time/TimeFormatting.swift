@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 14:59 PT
+// Last edited: 2026-09-24 15:40 PT
 
 import Foundation
 
@@ -41,6 +41,22 @@ enum TimeFormatting {
         timeZone: TimeZone = .autoupdatingCurrent
     ) -> String {
         date.formatted(Date.FormatStyle(locale: locale, timeZone: timeZone).hour().minute())
+    }
+
+    /// A short date: the weekday, the day, and the month, for example `Tue 22 Sep`.
+    /// The names come from the locale, and the order is fixed.
+    static func day(
+        _ date: Date,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        let style = Date.VerbatimFormatStyle(
+            format: "\(weekday: .abbreviated) \(day: .defaultDigits) \(month: .abbreviated)",
+            locale: locale,
+            timeZone: timeZone,
+            calendar: Calendar(identifier: .gregorian)
+        )
+        return date.formatted(style)
     }
 
     /// The quick-add live preview, for example `= 1 h 30 min · ends 3:42 PM`.
