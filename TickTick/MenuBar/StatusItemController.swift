@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 16:43 PT
+// Last edited: 2026-09-24 19:09 PT
 
 import AppKit
 import Observation
@@ -20,13 +20,15 @@ final class PopoverClock {
 ///
 /// The label follows the timer: it updates at once on every engine change (through Observation, so also for a
 /// rename of the running task) and every second while a timer is active. A click on the item opens or closes
-/// the popover. The popover is transient, so a click outside it closes it too.
+/// the popover. The popover is transient, so a click outside it closes it too. When it closes and no TickTick
+/// window is open, `ActivationPolicyController` gives the keyboard back to the app that was in front before.
 @MainActor
 final class StatusItemController: NSObject, NSPopoverDelegate {
     /// How long after a second changes the refresh fires, so the rounding lands on the new second.
     private static let refreshDelay: TimeInterval = 0.02
 
     private let engine: TimerEngine
+    private let activation: ActivationPolicyController
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let clock: PopoverClock
@@ -35,8 +37,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     /// A new value on every close, so the next open starts with a clean view (for example no half-typed time).
     private var presentationID = 0
 
-    init(engine: TimerEngine, statusBar: NSStatusBar = .system) {
+    init(engine: TimerEngine, activation: ActivationPolicyController, statusBar: NSStatusBar = .system) {
         self.engine = engine
+        self.activation = activation
         clock = PopoverClock(now: engine.clock.now)
         statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         hostingController = NSHostingController(rootView: TimerPopoverView(engine: engine, clock: clock))
@@ -70,7 +73,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             popover.close()
         }
         clock.now = engine.clock.now
-        activateOnClick()
+        activation.activateForClick(NSApp.currentEvent)
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // As the key window, the popover draws its controls in their active colors (blue Done, blue bar).
         popover.contentViewController?.view.window?.makeKey()
@@ -78,28 +81,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     /// Makes the popover take key presses, for the "+custom" field.
     private func prepareForTyping() {
-        activateOnClick()
+        activation.activateForClick(NSApp.currentEvent)
         popover.contentViewController?.view.window?.makeKey()
-    }
-
-    /// Activates the app when a mouse click caused the current action, so the popover gets key presses.
-    ///
-    /// The app has no Dock icon and is not active. macOS refuses the newer `activate()` for a click on the status
-    /// item, so this uses `activate(ignoringOtherApps:)`. Without a click (for example an accessibility press),
-    /// an activation makes the transient popover close at once, so the app stays inactive. The buttons work
-    /// either way; only typing needs the activation.
-    private func activateOnClick() {
-        guard !NSApp.isActive, let event = NSApp.currentEvent,
-              event.type == .leftMouseDown || event.type == .leftMouseUp
-        else {
-            return
-        }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func popoverDidClose(_: Notification) {
         presentationID += 1
         hostingController.rootView = makePopoverView()
+        activation.popoverDidClose()
     }
 
     private func makePopoverView() -> TimerPopoverView {
