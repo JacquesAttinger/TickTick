@@ -1,12 +1,14 @@
-// Last edited: 2026-09-24 15:20 PT
+// Last edited: 2026-09-24 19:20 PT
 
 import AppKit
 import os
 
-/// Owns the menu bar status item and the app's data and timer objects (`AppCore`).
+/// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), the alarm
+/// (`AlarmController`), the quick-add panel with its global hotkey (`QuickAddController`), the Notes window
+/// (`NotesWindowController`), and the Dock icon and keyboard focus rules (`ActivationPolicyController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let bundleIdentifier = "com.jacquesattinger.TickTick"
+    nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
     private static let logger = Logger(subsystem: bundleIdentifier, category: "AppDelegate")
 
     /// True when this process hosts the unit tests. The test host must not open the real store or restore the
@@ -15,26 +17,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    private var statusItem: NSStatusItem?
     /// Nil in the test host, and when the data store cannot open.
     private(set) var core: AppCore?
+    private(set) var statusItemController: StatusItemController?
+    private(set) var alarmController: AlarmController?
+    private(set) var quickAddController: QuickAddController?
+    private(set) var activationPolicyController: ActivationPolicyController?
+    private(set) var notesWindowController: NotesWindowController?
+    /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
+    private var fallbackStatusItem: NSStatusItem?
 
     func applicationDidFinishLaunching(_: Notification) {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "⏱"
-        item.menu = makeMenu()
-        statusItem = item
-
-        guard !Self.isRunningUnitTests, let core = Self.openCore() else {
+        guard !Self.isRunningUnitTests else {
+            return
+        }
+        guard let core = Self.openCore() else {
+            let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            item.button?.title = StatusItemLabel.timerSymbol
+            item.menu = makeFallbackMenu()
+            fallbackStatusItem = item
             return
         }
         self.core = core
         // Connect the timer's listeners (menu bar, alarm) to core.timerEngine here, before startTimer, so they
         // see the restored state and an expiry that happened while the app was quit.
+        // The alarm also becomes the notification delegate here, before the launch ends, so a banner button that
+        // launched the app reaches it.
+        let alarm = AlarmController.makeForApp(engine: core.timerEngine)
+        alarmController = alarm
+        let activation = ActivationPolicyController()
+        activationPolicyController = activation
+        let notes = NotesWindowController(
+            service: core.taskService,
+            engine: core.timerEngine,
+            activation: activation
+        )
+        notesWindowController = notes
+        statusItemController = StatusItemController(engine: core.timerEngine, activation: activation) { noteID in
+            notes.open(selecting: noteID)
+        }
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
+        alarm.startSyncingNotifications()
+        let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {
+            try core.modelStore.bootstrapInbox()
+        }
+        quickAdd.registerHotkey()
+        quickAddController = quickAdd
     }
 
-    func makeMenu() -> NSMenu {
+    /// The menu of the fallback item. The normal item has the popover, with its own Quit button.
+    func makeFallbackMenu() -> NSMenu {
         let menu = NSMenu()
         let quitItem = NSMenuItem(
             title: "Quit TickTick",
