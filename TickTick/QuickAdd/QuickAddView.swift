@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-24 18:40 PT
 
 import SwiftUI
 
@@ -7,6 +7,10 @@ import SwiftUI
 struct QuickAddView: View {
     static let width: CGFloat = 560
     static let cornerRadius: CGFloat = 18
+    static let fieldFontSize: CGFloat = 22
+    /// The icon column on the left of every step, and the gap after it.
+    static let iconColumnWidth: CGFloat = 26
+    static let iconSpacing: CGFloat = 12
 
     let session: QuickAddSession
     /// Called with the content height after each change.
@@ -17,7 +21,8 @@ struct QuickAddView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .frame(width: Self.width, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+            // Thick, so the text stays readable over a bright window behind the panel.
+            .background(.thickMaterial, in: RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
             .fixedSize(horizontal: false, vertical: true)
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.size.height
@@ -29,18 +34,39 @@ struct QuickAddView: View {
 
     @ViewBuilder private var content: some View {
         switch session.step {
-        case .task, .closed:
+        case .task:
             TaskStepView(session: session)
         case .duration:
             DurationStepView(session: session)
         case .confirmSwitch:
-            SwitchConfirmationView { now in
-                session.switchMessage(at: now) ?? ""
-            } onConfirm: {
-                session.send(.confirmSwitch)
-            } onCancel: {
-                session.send(.cancelSwitch)
+            IconRow(systemImage: "arrow.left.arrow.right", iconSize: 17) {
+                SwitchConfirmationView { now in
+                    session.switchMessage(at: now) ?? ""
+                } onConfirm: {
+                    session.send(.confirmSwitch)
+                } onCancel: {
+                    session.send(.cancelSwitch)
+                }
             }
+        case .closed:
+            EmptyView()
+        }
+    }
+}
+
+/// A row with an icon in a fixed column, so the text of every step starts at the same left edge.
+private struct IconRow<Content: View>: View {
+    let systemImage: String
+    var iconSize: CGFloat = QuickAddView.fieldFontSize
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: QuickAddView.iconSpacing) {
+            Image(systemName: systemImage)
+                .font(.system(size: iconSize))
+                .foregroundStyle(.secondary)
+                .frame(width: QuickAddView.iconColumnWidth)
+            content
         }
     }
 }
@@ -51,13 +77,10 @@ private struct TaskStepView: View {
     @FocusState private var fieldHasFocus: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "timer")
-                .font(.system(size: 22))
-                .foregroundStyle(.secondary)
+        IconRow(systemImage: "timer") {
             TextField("New task…", text: $session.taskText)
                 .textFieldStyle(.plain)
-                .font(.system(size: 22))
+                .font(.system(size: QuickAddView.fieldFontSize))
                 .focused($fieldHasFocus)
                 .task {
                     // Focus set at once is lost while the panel appears. A short wait makes it stick.
@@ -80,18 +103,24 @@ private struct DurationStepView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label(session.flow.taskTitle ?? "", systemImage: "checkmark.circle.fill")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            DurationPromptView(text: $session.durationText) { seconds in
-                session.send(.startRequested(seconds: seconds))
-            } onSkip: {
-                session.send(.skipDuration)
+            IconRow(systemImage: "checkmark.circle.fill", iconSize: 13) {
+                Text(session.flow.taskTitle ?? "")
+                    .lineLimit(1)
             }
-            Text("Saved in Inbox. Esc keeps it without a timer.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            IconRow(systemImage: "hourglass") {
+                VStack(alignment: .leading, spacing: 10) {
+                    DurationPromptView(text: $session.durationText, fontSize: QuickAddView.fieldFontSize) { seconds in
+                        session.send(.startRequested(seconds: seconds))
+                    } onSkip: {
+                        session.send(.skipDuration)
+                    }
+                    Text("Saved in Inbox. Esc keeps it without a timer.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 }
