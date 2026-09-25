@@ -1,0 +1,19 @@
+# Last edited: 2026-09-24 14:58 PT
+excluded:
+  - build
+  - DerivedData
+
+# warning matches error: SwiftLint's default warnings (400 lines, 50 lines) would
+# otherwise become errors under --strict and undercut the 500/75 limits.
+file_length:
+  warning: 500
+  error: 500
+
+function_body_length:
+  warning: 75
+  error: 75
+
+# SwiftFormat adds a trailing comma to multi-line collection literals. SwiftLint's
+# default forbids it, so the two tools would block every such literal. Agree with SwiftFormat.
+trailing_comma:
+  mandatory_comma: true
