@@ -1,0 +1,5 @@
+# Last edited: 2026-09-22 12:20 PT
+--swiftversion 6.0
+# Keep the mandatory "// Last edited:" line; SwiftFormat must not rewrite file headers.
+--header ignore
+--exclude build,DerivedData
