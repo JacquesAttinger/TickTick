@@ -1,6 +1,6 @@
 # TT-9: Task rows and the confirm flow
 
-<!-- Last edited: 2026-09-22 14:38 CDT -->
+<!-- Last edited: 2026-09-24 19:59 PT -->
 
 **TLDR:** This issue turns the Notes window's placeholder into a real task list.
 You type a task into an always-present empty row, press Return, and an inline "How long?" field appears under it — Return starts the timer, Esc keeps the task without one.
@@ -16,7 +16,8 @@ The right pane is this issue: the note's task rows, the empty row at the bottom 
 ## Orientation
 
 The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md` (Swift 6 + SwiftUI, AppKit where needed, XcodeGen project, SwiftData storage).
-On `origin/master` today only `README.md` and `docs/planning.md` exist: every dependency (TT-1 scaffold through TT-8 window shell) is still a plan-stage sibling branch, so this plan targets the interfaces those plans committed to, with a hard gate in step 0.
+TT-1 is on `master`. TT-2 through TT-8 are open PRs (#13 to #19), and this branch merges the TT-8 branch, which has all of them.
+The code on the branch is the source of truth. "As built" below lists where the code differs from this plan.
 The area is `TickTick/Notes/`, the Notes window views: TT-8 ships `NotesWindow.swift`, `NoteSidebarView.swift`, and a `NoteDetailView.swift` whose detail pane is an explicit placeholder labeled for this issue.
 The part this issue builds is that detail pane: the ordered list of open task rows plus the create-and-time flow.
 The exact sections are `NoteDetailView.swift` (rewritten from the placeholder) and the new `TaskRowView.swift`, sitting on four planned interfaces:
@@ -38,17 +39,34 @@ The shape of the work:
 The behavior defaults come almost for free: TT-4's `timerHooks` already turn `toggleDone` on the running task into Done and `deleteTask` into a stop with outcome `deleted`, so this issue only calls the plain `TaskService` operations.
 Rename-updates-the-menu-bar-live falls out of TT-5's 1 s label refresh as long as its controller reads the task title on each tick; step 5 verifies that and makes the minimal fix if the title is cached.
 
-**Dependency gate:** nothing below builds until `master` contains TT-1 through TT-8 (TT-9 is the sink of the whole M2 graph).
-Step 0 checks for the concrete files and stops with a blocked report instead of coding against guessed APIs — the same call every sibling plan made.
+**Dependency gate:** this branch builds on the TT-8 branch, which contains TT-2 through TT-8, so the gate in step 0 is met.
+Merge TT-9 only after those PRs.
+
+## As built
+
+- **No extraction:** TT-7 already shipped `SwitchConfirmationView(message:onConfirm:onCancel:)` in `TickTick/QuickAdd/SwitchConfirmation.swift`, so step 1 reuses it and `QuickAddView` does not change.
+- **No step 5 commit:** `StatusItemController` observes the engine, and `TimerEngine.activeTask` looks the task up by ID, so a rename shows in the menu bar at once.
+- **`TaskListModel`** (new, `TickTick/Notes/TaskListModel.swift`) runs the flow's effects on `TaskService` and `TimerEngine`, like `QuickAddSession` does for quick-add. It owns the draft text and the typed duration.
+- **`createTask` round trip:** the flow emits `createTask(title:)`, and the model sends `taskCreated(id:)` back, so the flow can open the prompt on the new task. `tasksChanged` keeps the flow's rows in step with the data, also for changes from outside the window.
+- **`VStack`, not `LazyVStack`:** a lazy row that is not on screen cannot take the focus. Task lists are short.
+- **Focus after the prompt:** Return and Esc in the prompt move the focus to the draft row, also after ▶ on an older row.
+- **Keyboard for ▶ and the checkbox:** ⌘↩ is ▶ and ⇧⌘C checks the task, both on the row with the focus (TT-11 must add them to `ShortcutCatalog`).
+- **A click in another row** closes the open prompt or question. The task stays without a timer.
+- **The live time** uses a `TimelineSchedule` that ticks at the same moments as the menu bar label (`StatusItemLabel.nextChange`), and the text comes from `TimerPopoverModel`, so the row, the label, and the popover always show the same second.
+- **Right-click menu in AppKit:** SwiftUI's `.contextMenu` does not show over a text field (the field shows Cut, Copy, and Paste), and the title fills the row. `TaskRowMenu` is a small AppKit overlay that takes only right-clicks and Control-clicks. It shows "Delete", plus Cut, Copy, and Paste while the title is being edited.
+- **Long titles stay on one line:** "…" when not editing, and the text scrolls in its line while editing. A title that wrapped while editing made the row clip its second line.
+- **Focus details:** when the window opens, AppKit gives the first task's title the focus with all its text selected. The pane moves that focus to the draft row. After ↑, ↓, Return, or ⌫, the caret goes to the end of the title instead of selecting all of it. A click keeps the caret where you click. `.defaultFocus` was tried and dropped, because it stopped the arrows from moving the focus.
+- **⌫ key:** in a text field it arrives as U+007F, which no named `KeyEquivalent` matches, so the handler checks the character.
+- **The running icon pulses** while the time counts down and in overtime, not while paused.
 
 ## Likely touched files
 
 - `TickTick/Notes/TaskListFlow.swift` — new; the pure state machine for focus, prompt, confirmation, and keyboard rules.
 - `TickTick/Notes/TaskRowView.swift` — new; one task row (checkbox, title field, hover ▶, live indicator, context menu).
 - `TickTick/Notes/NoteDetailView.swift` — rewritten from TT-8's placeholder; the row list, draft row, inline prompt, and all wiring to `TaskService` and `TimerEngine`.
-- `TickTick/QuickAdd/SwitchConfirmationView.swift` — new (extracted); the shared "Stop "A" (12 min left) and start "B"?" view, reused here and by `QuickAddView`.
-- `TickTick/QuickAdd/QuickAddView.swift` — edited; its inline confirmation block is replaced by the extracted view, behavior unchanged.
-- `TickTick/MenuBar/StatusItemController.swift` — edited only if step 5 finds the label caches the task title; the fix is to read the title per refresh tick.
+- `TickTick/Notes/TaskListModel.swift` — new; runs the flow's effects on the real data.
+- `TickTick/Notes/NotesWindow.swift` and `TickTick/App/AppDelegate.swift` — edited; pass the timer engine to the detail pane.
+- `TickTickTests/TaskListModelTests.swift` — new; the flow on an in-memory store with a test-clock engine.
 - `TickTickTests/TaskListFlowTests.swift` — new; one test per keyboard and flow rule.
 - `docs/task-rows-and-confirm-flow_plan.md` — this plan.
 
@@ -149,7 +167,7 @@ Run in the worktree after the step 0 merge:
 
 - `make gen test lint` — exits 0; the new `TaskListFlowTests` suite runs and passes, and every pre-existing suite stays green.
 - The test list must include, by name: whitespace-only draft Return does nothing, draft Return creates the task and opens the prompt, prompt Return starts with `replacing: false`, Esc keeps the task and starts nothing, confirmation confirm starts with `replacing: true`, confirmation cancel returns to the prompt with input kept, ⌫ on an empty row deletes it and focuses the row above, ⌫ on the draft only moves focus up, arrows clamp at both ends, focus is never nil.
-- `git diff origin/master --stat` — only files under `TickTick/Notes/`, `TickTick/QuickAdd/`, `TickTick/MenuBar/` (step 5 at most), `TickTickTests/`, and `docs/` change.
+- `git diff origin/jacques/tod-12-tt-8-notes-window-shell-sidebar-hybrid-dock-icon-code --stat` — only files under `TickTick/Notes/`, `TickTick/App/AppDelegate.swift`, `TickTickTests/`, and `docs/` change.
 
 Manual check on the installed app (`make install`), all of it keyboard-only except the hover and context-menu checks:
 
