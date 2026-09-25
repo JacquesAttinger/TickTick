@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:05 PT
+// Last edited: 2026-09-24 17:08 PT
 
 import AppKit
 import os
@@ -61,6 +61,7 @@ final class FlashController {
         flash(timeline: .forReduceMotion(reduceMotion))
     }
 
+    /// Flashes every display once with `timeline`.
     func flash(timeline: FlashTimeline) {
         closeWindows()
         flashID += 1

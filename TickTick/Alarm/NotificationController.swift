@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 16:58 PT
+// Last edited: 2026-09-24 17:08 PT
 
 import Foundation
 import os
@@ -116,7 +116,7 @@ final class NotificationController: NSObject {
             return
         }
         guard !delivered.contains(id), !pending.contains(id) else {
-            Self.logger.notice("Notification \(id, privacy: .public) is shown by the system")
+            Self.logger.notice("Notification \(id, privacy: .public) is shown or scheduled by the system")
             return
         }
         let content = NotificationContent.make(taskName: taskName, plannedSeconds: timer.plannedSeconds)
