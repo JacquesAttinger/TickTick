@@ -1,6 +1,7 @@
-// Last edited: 2026-09-24 16:50 PT
+// Last edited: 2026-09-24 17:05 PT
 
 import AppKit
+import os
 import QuartzCore
 
 /// The white levels of one alarm flash over time, as a Core Animation keyframe list.
@@ -47,6 +48,8 @@ struct FlashTimeline: Equatable {
 /// The windows ignore the mouse, so clicks go through to the app below. They exist only while a flash runs.
 @MainActor
 final class FlashController {
+    private static let logger = Logger(subsystem: AppDelegate.bundleIdentifier, category: "Flash")
+
     private var windows: [NSWindow] = []
     /// A new value for each flash, so the end of an older flash does not close the windows of a newer one.
     private var flashID = 0
@@ -77,6 +80,8 @@ final class FlashController {
             window.orderFrontRegardless()
         }
         CATransaction.commit()
+        let screenCount = windows.count
+        Self.logger.notice("Flash started on \(screenCount) screens, \(timeline.peakCount) peaks")
     }
 
     private func closeWindows() {
