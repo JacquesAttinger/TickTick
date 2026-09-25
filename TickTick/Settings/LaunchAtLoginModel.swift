@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-25 01:31 PT
 
 import Observation
 import os
@@ -47,6 +47,7 @@ final class LaunchAtLoginModel {
     /// Registers or unregisters the login item. On an error, the switch goes back to the real state and the
     /// error text shows under it.
     func setOn(_ isOn: Bool) {
+        let change = isOn ? "on" : "off"
         do {
             if isOn {
                 try service.register()
@@ -57,11 +58,11 @@ final class LaunchAtLoginModel {
         } catch {
             let text = error.localizedDescription
             errorText = text
-            Self.logger.error("Launch at login \(isOn ? "on" : "off") failed: \(text, privacy: .public)")
+            Self.logger.error("Launch at login \(change, privacy: .public) failed: \(text, privacy: .public)")
         }
         refresh()
         let statusName = Self.name(of: status)
-        Self.logger.notice("Launch at login set \(isOn ? "on" : "off"): status \(statusName, privacy: .public)")
+        Self.logger.notice("Launch at login set \(change, privacy: .public): status \(statusName, privacy: .public)")
     }
 
     /// Reads the state again, for a change made in System Settings.
