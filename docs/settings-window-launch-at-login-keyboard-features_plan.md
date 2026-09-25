@@ -1,6 +1,6 @@
 # TT-11: Settings window, launch at login, keyboard features
 
-<!-- Last edited: 2026-09-24 20:16 PT -->
+<!-- Last edited: 2026-09-25 01:32 PT -->
 
 **TLDR:** We give the app a Settings window and finish the keyboard features.
 You get a "Launch at login" switch, a switch and a key recorder for each global hotkey, quick keys inside the popover (Space to pause, D for done, S for stop, 1 / 5 / 0 to add minutes), and a new global hotkey ⌃⌥T that opens the popover from anywhere.
@@ -49,6 +49,9 @@ The shape of the work:
 - **⌃⌥T activates TickTick before the popover shows** (`ActivationPolicyController.activateForHotkey()`), so the popover keys work after the hotkey too. A click still uses `activateForClick(_:)`.
 - **Notes-scope entries:** TT-8 and TT-9 are on the branch, so the catalog has ⌘N, Return, Esc, ⌘↩, ⇧⌘C, ↑ / ↓, and ⌫. `NoteSidebarView` and `TaskRowView` now read ⌘N, ⌘↩, and ⇧⌘C (and their tooltips) from the catalog.
 - **The idle popover hint** ("New task: ⌃⌥Space") shows the recorded keys, and it hides while the quick-add hotkey is off.
+- **Window size and title:** each tab has its own height (General is short, Shortcuts is tall), and the window grows or shrinks down from a fixed top edge when you change tabs, like other Mac Settings windows.
+  The window title is the name of the selected tab.
+- **Popover keys section:** the switch is named "Single keys", because the section title already says "Popover keys".
 
 ## Likely touched files
 
