@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:56 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import SwiftUI
 
@@ -86,8 +86,8 @@ struct TaskRowView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(hasFocus ? KeyboardShortcut("c", modifiers: [.command, .shift]) : nil)
-        .help("Mark as done (⇧⌘C)")
+        .keyboardShortcut(hasFocus ? ShortcutCatalog.markDoneKeys : nil)
+        .help("Mark as done (\(ShortcutCatalog.markDone.keysText))")
         .accessibilityLabel("Mark as done")
     }
 
@@ -124,8 +124,8 @@ struct TaskRowView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(hasFocus ? KeyboardShortcut(.return, modifiers: .command) : nil)
-        .help("Start a timer (⌘↩)")
+        .keyboardShortcut(hasFocus ? ShortcutCatalog.startTimerKeys : nil)
+        .help("Start a timer (\(ShortcutCatalog.startTimer.keysText))")
         .accessibilityLabel("Start a timer")
         // Hidden, not removed, so the title does not get wider and narrower as the pointer moves.
         .opacity(isShown ? 1 : 0)

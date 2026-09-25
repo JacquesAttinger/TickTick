@@ -1,17 +1,12 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
 import KeyboardShortcuts
 import os
 import SwiftUI
 
-extension KeyboardShortcuts.Name {
-    /// The global quick-add hotkey, ⌃⌥Space by default (product decision 15). TT-11 moves the names to
-    /// `ShortcutCatalog` and adds the on/off toggle and the recorder.
-    static let quickAdd = Self("quickAdd", initial: .init(.space, modifiers: [.control, .option]))
-}
-
-/// Opens the quick-add panel with the global hotkey, from any app, and closes it again.
+/// Opens the quick-add panel with the global hotkey (`KeyboardShortcuts.Name.quickAdd` in `ShortcutCatalog`), from
+/// any app, and closes it again. The Settings window turns the hotkey off and on (`GlobalHotkeys`).
 ///
 /// Each opening builds a new `QuickAddSession` and a new view, so it always starts on an empty step 1.
 /// The panel closes when the flow says so, when it loses key status (a click elsewhere), and on the hotkey again.

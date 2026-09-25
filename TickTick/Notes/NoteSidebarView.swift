@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import SwiftUI
 
@@ -85,8 +85,8 @@ struct NoteSidebarView: View {
                 }
             }
             .buttonStyle(.borderless)
-            .keyboardShortcut("n", modifiers: .command)
-            .help("New Note (⌘N)")
+            .keyboardShortcut(ShortcutCatalog.newNoteKeys)
+            .help("New Note (\(ShortcutCatalog.newNote.keysText))")
             Spacer()
         }
         .padding(.leading, 18)
