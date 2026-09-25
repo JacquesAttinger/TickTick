@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-24 18:40 PT
 
 import AppKit
 
@@ -8,7 +8,7 @@ import AppKit
 /// panel gives the keyboard straight back to that app. It floats above normal windows, shows on every Space, and
 /// also shows over a full-screen app.
 final class QuickAddPanel: NSPanel {
-    /// How far below the top of the screen's visible area the panel's top edge sits, as a part of its height.
+    /// How far below the top of the visible screen area the top edge of the panel sits, as a part of that height.
     static let topOffsetFraction: CGFloat = 0.22
 
     init() {
