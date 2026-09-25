@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-25 01:17 PT
 
 import KeyboardShortcuts
 import SwiftUI
@@ -49,8 +49,9 @@ struct ShortcutsSettingsView: View {
     private var popoverKeysSection: some View {
         Section("Popover keys") {
             Toggle(isOn: $preferences.popoverKeysEnabled) {
-                Text("Popover keys")
-                Text("Single keys that work while the popover is open and a timer is active.")
+                // Not "Popover keys" again: the section title says it, like "Hotkey" under "Quick add".
+                Text("Single keys")
+                Text("They work while the popover is open and a timer is active.")
             }
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
                 ForEach(ShortcutCatalog.popoverKeys) { info in
