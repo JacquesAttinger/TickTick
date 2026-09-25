@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-25 01:13 PT
 
 import AppKit
 import SwiftUI
@@ -60,6 +60,8 @@ final class SettingsWindowController {
         for tab in SettingsTab.allCases {
             let content = NSHostingController(rootView: makeView(for: tab))
             content.sizingOptions = .preferredContentSize
+            // The tab controller passes the selected tab's title to the window title.
+            content.title = tab.title
             let item = NSTabViewItem(viewController: content)
             item.label = tab.title
             item.image = NSImage(systemSymbolName: tab.symbolName, accessibilityDescription: tab.title)
