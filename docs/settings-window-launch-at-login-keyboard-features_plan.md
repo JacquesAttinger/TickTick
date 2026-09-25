@@ -1,6 +1,6 @@
 # TT-11: Settings window, launch at login, keyboard features
 
-<!-- Last edited: 2026-09-22 14:34 CDT -->
+<!-- Last edited: 2026-09-24 20:16 PT -->
 
 **TLDR:** We give the app a Settings window and finish the keyboard features.
 You get a "Launch at login" switch, a switch and a key recorder for each global hotkey, quick keys inside the popover (Space to pause, D for done, S for stop, 1 / 5 / 0 to add minutes), and a new global hotkey ⌃⌥T that opens the popover from anywhere.
@@ -16,7 +16,8 @@ The popover keys work while the popover is open with a timer active: Space pause
 ## Orientation
 
 The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
-On `origin/master` today only `README.md` and `docs/planning.md` exist: the dependencies TT-5 (popover, TOD-9) and TT-7 (quick-add, TOD-11) and their whole chain down to TT-1 are still plan-stage sibling branches, none merged.
+TT-1 is on `master`. TT-2 through TT-9 are open PRs (#13 to #20), and this branch merges the TT-9 branch, which has all of them, so the step 0 gate is met.
+The code on the branch is the source of truth. "As built" below lists where the code differs from this plan.
 The planned folder layout gives this issue the `TickTick/Settings/` folder: `SettingsView.swift`, `GeneralSettingsView.swift`, `ShortcutsSettingsView.swift`, and `ShortcutCatalog.swift` (`HelpView.swift` in the same folder belongs to TT-12).
 Three merged pieces are the insertion points:
 `TickTick/App/TickTickApp.swift` (from TT-1) already declares an empty SwiftUI `Settings { EmptyView() }` scene with a comment that TT-11 fills it in.
@@ -38,22 +39,38 @@ The shape of the work:
 5. The Settings scene gets a real `SettingsView` with a General tab (`SMAppService.mainApp` launch-at-login toggle that shows the real registration status) and a Shortcuts tab (recorders and toggles), and the popover's "Settings…" placeholder becomes a working button.
 6. Every toggle takes effect at once: hotkey toggles call `KeyboardShortcuts.enable` / `.disable`, and the popover key monitor checks the preference live.
 
+## As built
+
+- **The Settings window is AppKit, not the SwiftUI `Settings` scene.** The popover lives outside every SwiftUI scene, so it cannot open that scene (TT-8 chose AppKit for the Notes window for the same reason). `SettingsWindowController` (`TickTick/Settings/SettingsWindowController.swift`) shows an `NSTabViewController` with toolbar tabs, the standard look of a Mac Settings window. The empty `Settings` scene stays, and `TickTickApp` replaces its "Settings…" menu item (⌘,) with one that opens the AppKit window. So there is no `SettingsView.swift`; the tabs are the `SettingsTab` enum, and TT-12 adds `.help` there.
+- **Dock icon while Settings is open:** the window uses `ActivationPolicyController.windowWillShow(_:)`, like the Notes window, so it gets a Dock icon, Cmd-Tab, the main menu (⌘W), and the keyboard goes back to the previous app when it closes.
+- **`GlobalHotkeys`** (`TickTick/Settings/GlobalHotkeys.swift`) follows `Preferences` with Observation and calls `KeyboardShortcuts.enable` / `.disable`. It also registers ⌃⌥T. `AppDelegate` only builds it. `QuickAddController.registerHotkey()` still registers ⌃⌥Space.
+- **`LaunchAtLoginModel`** (`TickTick/Settings/LaunchAtLoginModel.swift`) wraps `SMAppService.mainApp` behind a small `LoginItemService` protocol, so tests use a fake. The switch is on for `.enabled` and also for `.requiresApproval` (with the approval hint), so you can turn a waiting item off again.
+- **Popover keys:** `PopoverKeyCommand` (in `PopoverKeyHandler.swift`) is the one list of the six keys. `ShortcutCatalog.popoverKeys` and `PopoverKeyMonitor` both read it. Held keys repeat with no action and no beep. Space in overtime beeps, like the dimmed Pause button. Keys with ⌘, ⌃, or ⌥ pass through.
+- **⌃⌥T activates TickTick before the popover shows** (`ActivationPolicyController.activateForHotkey()`), so the popover keys work after the hotkey too. A click still uses `activateForClick(_:)`.
+- **Notes-scope entries:** TT-8 and TT-9 are on the branch, so the catalog has ⌘N, Return, Esc, ⌘↩, ⇧⌘C, ↑ / ↓, and ⌫. `NoteSidebarView` and `TaskRowView` now read ⌘N, ⌘↩, and ⇧⌘C (and their tooltips) from the catalog.
+- **The idle popover hint** ("New task: ⌃⌥Space") shows the recorded keys, and it hides while the quick-add hotkey is off.
+
 ## Likely touched files
 
 - `TickTick/Settings/ShortcutCatalog.swift` — new; the `ShortcutInfo` type (id, keys, description, scope), the full catalog list, and the `KeyboardShortcuts.Name` constants (`quickAdd` moves here, `togglePopover` is born here).
 - `TickTick/Settings/Preferences.swift` — new; `@Observable` on/off state for the three features, backed by an injectable `UserDefaults`.
-- `TickTick/Settings/SettingsView.swift` — new; the `TabView` shell with the General and Shortcuts tabs.
-- `TickTick/Settings/GeneralSettingsView.swift` — new; the launch-at-login toggle and its `SMAppService` status model.
+- `TickTick/Settings/SettingsWindowController.swift` — new; the AppKit Settings window with toolbar tabs (`SettingsTab`), in place of the planned `SettingsView.swift`.
+- `TickTick/Settings/GeneralSettingsView.swift` — new; the launch-at-login toggle.
+- `TickTick/Settings/LaunchAtLoginModel.swift` — new; the `SMAppService` status model behind that toggle.
+- `TickTick/Settings/GlobalHotkeys.swift` — new; turns the two hotkeys on and off to match `Preferences`, and registers ⌃⌥T.
 - `TickTick/Settings/ShortcutsSettingsView.swift` — new; `KeyboardShortcuts.Recorder` rows and the three enable toggles.
 - `TickTick/MenuBar/PopoverKeyHandler.swift` — new; the pure key-to-command mapping and the local `NSEvent` monitor lifecycle.
 - `TickTick/MenuBar/StatusItemController.swift` — edited; installs and removes the popover key monitor with the popover, and exposes `toggle()` to the global hotkey.
 - `TickTick/MenuBar/TimerPopoverView.swift` — edited; the disabled "Settings…" placeholder becomes a real button in the idle and the active state.
 - `TickTick/QuickAdd/QuickAddController.swift` — edited; its local `KeyboardShortcuts.Name.quickAdd` declaration is removed in favor of the catalog's.
-- `TickTick/App/TickTickApp.swift` — edited; `Settings { EmptyView() }` becomes `Settings { SettingsView(...) }`.
+- `TickTick/App/TickTickApp.swift` — edited; the "Settings…" menu item (⌘,) opens the AppKit Settings window.
+- `TickTick/App/ActivationPolicyController.swift` — edited; `activateForHotkey()` for ⌃⌥T.
+- `TickTick/Notes/NoteSidebarView.swift` and `TickTick/Notes/TaskRowView.swift` — edited; read ⌘N, ⌘↩, and ⇧⌘C from the catalog.
 - `TickTick/App/AppDelegate.swift` — edited; builds the shared `Preferences`, registers the ⌃⌥T handler, and applies the stored enable state at launch (kept to a few lines; this file is a known merge hotspot).
 - `TickTickTests/ShortcutCatalogTests.swift` — new; catalog completeness and uniqueness.
 - `TickTickTests/PopoverKeyHandlerTests.swift` — new; the pure key mapping under every state.
-- `TickTickTests/PreferencesTests.swift` — new; defaults and persistence round-trip.
+- `TickTickTests/PreferencesTests.swift` — new; defaults and persistence round-trip, and `GlobalHotkeys` following the switches.
+- `TickTickTests/LaunchAtLoginModelTests.swift` — new; on, off, errors, and approval with a fake login item.
 - `docs/settings-window-launch-at-login-keyboard-features_plan.md` — this plan.
 
 ## Plan
@@ -139,7 +156,7 @@ Run in the worktree after the step 0 merge:
 
 - `make gen test lint` — exits 0; the new `PreferencesTests`, `ShortcutCatalogTests`, and `PopoverKeyHandlerTests` suites run and pass.
 - The test list must include, by name: catalog ids are unique, every catalog entry has a description, both global ids and all six popover keys are present, each popover key maps to its command, an unmapped key returns nil, preference defaults are true, and a preference write round-trips.
-- `git diff origin/master --stat` — only files under `TickTick/Settings/`, `TickTick/MenuBar/`, `TickTick/QuickAdd/` (the moved name only), `TickTick/App/`, `TickTickTests/`, and `docs/` change.
+- `git diff origin/jacques/tod-14-tt-9-task-rows-and-the-confirm-flow-code --stat` — only files under `TickTick/Settings/`, `TickTick/MenuBar/`, `TickTick/QuickAdd/` (the moved name only), `TickTick/App/`, `TickTick/Notes/` (the catalog keys only), `TickTickTests/`, and `docs/` change.
 
 Manual check on the installed app (`make install`):
 
