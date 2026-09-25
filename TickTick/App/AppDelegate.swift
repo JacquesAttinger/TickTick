@@ -4,8 +4,8 @@ import AppKit
 import os
 
 /// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), the alarm
-/// (`AlarmController`), the quick-add panel with its global hotkey (`QuickAddController`), and the Dock icon and
-/// keyboard focus rules (`ActivationPolicyController`).
+/// (`AlarmController`), the quick-add panel with its global hotkey (`QuickAddController`), the Notes window
+/// (`NotesWindowController`), and the Dock icon and keyboard focus rules (`ActivationPolicyController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -23,6 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var alarmController: AlarmController?
     private(set) var quickAddController: QuickAddController?
     private(set) var activationPolicyController: ActivationPolicyController?
+    private(set) var notesWindowController: NotesWindowController?
     /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
     private var fallbackStatusItem: NSStatusItem?
 
@@ -46,7 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alarmController = alarm
         let activation = ActivationPolicyController()
         activationPolicyController = activation
-        statusItemController = StatusItemController(engine: core.timerEngine, activation: activation)
+        let notes = NotesWindowController(service: core.taskService, activation: activation)
+        notesWindowController = notes
+        statusItemController = StatusItemController(engine: core.timerEngine, activation: activation) { noteID in
+            notes.open(selecting: noteID)
+        }
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
         alarm.startSyncingNotifications()
         let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {

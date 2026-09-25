@@ -29,6 +29,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private let engine: TimerEngine
     private let activation: ActivationPolicyController
+    /// Opens the Notes window and selects the note with the ID, or the Inbox for nil.
+    private let openNotes: (UUID?) -> Void
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let clock: PopoverClock
@@ -37,9 +39,15 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     /// A new value on every close, so the next open starts with a clean view (for example no half-typed time).
     private var presentationID = 0
 
-    init(engine: TimerEngine, activation: ActivationPolicyController, statusBar: NSStatusBar = .system) {
+    init(
+        engine: TimerEngine,
+        activation: ActivationPolicyController,
+        statusBar: NSStatusBar = .system,
+        openNotes: @escaping (UUID?) -> Void
+    ) {
         self.engine = engine
         self.activation = activation
+        self.openNotes = openNotes
         clock = PopoverClock(now: engine.clock.now)
         statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         hostingController = NSHostingController(rootView: TimerPopoverView(engine: engine, clock: clock))
@@ -85,6 +93,13 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.contentViewController?.view.window?.makeKey()
     }
 
+    /// "Open Notes" and "Open ↗". The window opens first, so the popover closes with a TickTick window open, and
+    /// the keyboard stays with TickTick.
+    private func openNotesFromPopover(selecting noteID: UUID?) {
+        openNotes(noteID)
+        popover.performClose(nil)
+    }
+
     func popoverDidClose(_: Notification) {
         presentationID += 1
         hostingController.rootView = makePopoverView()
@@ -92,9 +107,13 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     private func makePopoverView() -> TimerPopoverView {
-        TimerPopoverView(engine: engine, clock: clock, presentationID: presentationID) { [weak self] in
-            self?.prepareForTyping()
-        }
+        TimerPopoverView(
+            engine: engine,
+            clock: clock,
+            presentationID: presentationID,
+            prepareForTyping: { [weak self] in self?.prepareForTyping() },
+            openNotes: { [weak self] noteID in self?.openNotesFromPopover(selecting: noteID) }
+        )
     }
 
     // MARK: - Label
