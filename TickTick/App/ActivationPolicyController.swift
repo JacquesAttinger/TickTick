@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
 import os
@@ -139,6 +139,15 @@ final class ActivationPolicyController {
     /// way; only typing needs the activation.
     func activateForClick(_ event: NSEvent?) {
         guard !host.isActive, let event, event.type == .leftMouseDown || event.type == .leftMouseUp else {
+            return
+        }
+        host.activateTickTick()
+    }
+
+    /// Makes TickTick active for the open-popover hotkey, so the popover gets key presses. Like a click, the hotkey
+    /// is a clear request from you. TickTick activates before the popover shows, so the popover stays open.
+    func activateForHotkey() {
+        guard !host.isActive else {
             return
         }
         host.activateTickTick()

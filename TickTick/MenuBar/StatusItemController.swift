@@ -1,6 +1,7 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
+import KeyboardShortcuts
 import Observation
 import SwiftUI
 
@@ -20,8 +21,9 @@ final class PopoverClock {
 ///
 /// The label follows the timer: it updates at once on every engine change (through Observation, so also for a
 /// rename of the running task) and every second while a timer is active. A click on the item opens or closes
-/// the popover. The popover is transient, so a click outside it closes it too. When it closes and no TickTick
-/// window is open, `ActivationPolicyController` gives the keyboard back to the app that was in front before.
+/// the popover, and so does the open-popover hotkey (⌃⌥T). The popover is transient, so a click outside it closes it
+/// too. When it closes and no TickTick window is open, `ActivationPolicyController` gives the keyboard back to the
+/// app that was in front before. While it is open, `PopoverKeyMonitor` runs the popover keys (Space, D, S, 1, 5, 0).
 @MainActor
 final class StatusItemController: NSObject, NSPopoverDelegate {
     /// How long after a second changes the refresh fires, so the rounding lands on the new second.
@@ -29,8 +31,11 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private let engine: TimerEngine
     private let activation: ActivationPolicyController
+    private let preferences: Preferences
     /// Opens the Notes window and selects the note with the ID, or the Inbox for nil.
     private let openNotes: (UUID?) -> Void
+    private let openSettings: () -> Void
+    private let keyMonitor: PopoverKeyMonitor
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let clock: PopoverClock
@@ -42,12 +47,17 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     init(
         engine: TimerEngine,
         activation: ActivationPolicyController,
+        preferences: Preferences,
         statusBar: NSStatusBar = .system,
-        openNotes: @escaping (UUID?) -> Void
+        openNotes: @escaping (UUID?) -> Void,
+        openSettings: @escaping () -> Void
     ) {
         self.engine = engine
         self.activation = activation
+        self.preferences = preferences
         self.openNotes = openNotes
+        self.openSettings = openSettings
+        keyMonitor = PopoverKeyMonitor(engine: engine, preferences: preferences)
         clock = PopoverClock(now: engine.clock.now)
         statusItem = statusBar.statusItem(withLength: NSStatusItem.variableLength)
         hostingController = NSHostingController(rootView: TimerPopoverView(engine: engine, clock: clock))
@@ -62,17 +72,25 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         observeEngine()
     }
 
-    /// Opens the popover below the menu bar item, or closes it when it is open.
-    /// TT-11 calls this for the global ⌃⌥T shortcut.
-    @objc func togglePopover(_ sender: Any?) {
+    /// Opens the popover below the menu bar item, or closes it when it is open. A click on the item calls this.
+    @objc func togglePopover(_: Any?) {
+        toggle(fromHotkey: false)
+    }
+
+    /// The open-popover hotkey (⌃⌥T). TickTick becomes the active app, so the popover keys reach it.
+    func togglePopoverFromHotkey() {
+        toggle(fromHotkey: true)
+    }
+
+    private func toggle(fromHotkey: Bool) {
         if popover.isShown, popover.contentViewController?.view.window?.isOnActiveSpace == true {
-            popover.performClose(sender)
+            popover.performClose(nil)
         } else {
-            showPopover()
+            showPopover(fromHotkey: fromHotkey)
         }
     }
 
-    private func showPopover() {
+    private func showPopover(fromHotkey: Bool) {
         guard let button = statusItem.button else {
             return
         }
@@ -81,10 +99,18 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             popover.close()
         }
         clock.now = engine.clock.now
-        activation.activateForClick(NSApp.currentEvent)
+        // Settings can have changed the quick-add hint since the last close.
+        hostingController.rootView = makePopoverView()
+        if fromHotkey {
+            activation.activateForHotkey()
+        } else {
+            activation.activateForClick(NSApp.currentEvent)
+        }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // As the key window, the popover draws its controls in their active colors (blue Done, blue bar).
-        popover.contentViewController?.view.window?.makeKey()
+        let window = popover.contentViewController?.view.window
+        window?.makeKey()
+        keyMonitor.start(for: window)
     }
 
     /// Makes the popover take key presses, for the "+custom" field.
@@ -100,7 +126,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
+    /// "Settings…". The window opens first, so the popover closes with a TickTick window open.
+    private func openSettingsFromPopover() {
+        openSettings()
+        popover.performClose(nil)
+    }
+
     func popoverDidClose(_: Notification) {
+        keyMonitor.stop()
         presentationID += 1
         hostingController.rootView = makePopoverView()
         activation.popoverDidClose()
@@ -111,9 +144,19 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             engine: engine,
             clock: clock,
             presentationID: presentationID,
+            quickAddKeys: quickAddKeys,
             prepareForTyping: { [weak self] in self?.prepareForTyping() },
-            openNotes: { [weak self] noteID in self?.openNotesFromPopover(selecting: noteID) }
+            openNotes: { [weak self] noteID in self?.openNotesFromPopover(selecting: noteID) },
+            openSettings: { [weak self] in self?.openSettingsFromPopover() }
         )
+    }
+
+    /// The keys of the quick-add hotkey for the idle popover's hint, or nil when the hotkey is off or has no keys.
+    private var quickAddKeys: String? {
+        guard preferences.quickAddHotkeyEnabled, KeyboardShortcuts.getShortcut(for: .quickAdd) != nil else {
+            return nil
+        }
+        return ShortcutCatalog.quickAdd.keysText
     }
 
     // MARK: - Label

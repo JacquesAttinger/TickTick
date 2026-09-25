@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
 import SwiftUI
@@ -12,10 +12,14 @@ struct TimerPopoverView: View {
     let clock: PopoverClock
     /// A new value clears the view's own state, such as a half-typed custom time.
     var presentationID = 0
+    /// The quick-add hotkey for the idle hint, for example `⌃⌥Space`. Nil hides the hint (the hotkey is off).
+    var quickAddKeys: String?
     /// Makes the popover take key presses. The "+custom" field calls it before it takes focus.
     var prepareForTyping: () -> Void = {}
     /// Opens the Notes window and selects the note with the ID, or the Inbox for nil. It closes the popover.
     var openNotes: (UUID?) -> Void = { _ in }
+    /// Opens the Settings window. It closes the popover.
+    var openSettings: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,12 +32,12 @@ struct TimerPopoverView: View {
                         openNote: { openNotes(engine.activeTask?.note?.id) }
                     )
                 } else {
-                    IdleTimerView()
+                    IdleTimerView(quickAddKeys: quickAddKeys)
                 }
             }
             .padding(16)
             Divider()
-            PopoverFooter(openNotes: { openNotes(nil) })
+            PopoverFooter(openNotes: { openNotes(nil) }, openSettings: openSettings)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
         }
@@ -174,14 +178,17 @@ struct WideButton: View {
 
 /// No active timer.
 private struct IdleTimerView: View {
+    let quickAddKeys: String?
+
     var body: some View {
         VStack(spacing: 4) {
             Text("No timer running")
                 .font(.headline)
-            // The quick-add hotkey (`KeyboardShortcuts.Name.quickAdd`).
-            Text("New task: ⌃⌥Space")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            if let quickAddKeys {
+                Text("New task: \(quickAddKeys)")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
@@ -191,13 +198,12 @@ private struct IdleTimerView: View {
 /// Links to the other windows, and Quit.
 private struct PopoverFooter: View {
     let openNotes: () -> Void
+    let openSettings: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
             Button("Open Notes", action: openNotes)
-            // TT-11 makes this open the Settings window.
-            Button("Settings…") {}
-                .disabled(true)
+            Button("Settings…", action: openSettings)
             Spacer()
             Button("Quit TickTick") { NSApp.terminate(nil) }
         }
