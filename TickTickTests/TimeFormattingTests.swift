@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:40 PT
+// Last edited: 2026-09-28 16:45 PT
 
 import Foundation
 import Testing
@@ -113,5 +113,37 @@ struct TimeFormattingTests {
         let name = "Write the cover letters for Acme"
         #expect(Array(name)[23] == " ")
         #expect(TimeFormatting.menuBarName(name) == "Write the cover letters…")
+    }
+
+    // MARK: - compact and taskBadge
+
+    @Test(arguments: [
+        (0, "<1m"),
+        (59.9, "<1m"),
+        (60, "1m"),
+        (119, "1m"),
+        (2700, "45m"),
+        (3120, "52m"),
+        (3600, "1h"),
+        (5400, "1h 30m"),
+        (7259, "2h"),
+        // Negative input counts as no time.
+        (-30, "<1m"),
+    ] as [(TimeInterval, String)])
+    func compact(seconds: TimeInterval, text: String) {
+        #expect(TimeFormatting.compact(seconds) == text)
+    }
+
+    @Test(arguments: [
+        // ((estimate, actual), text)
+        ((2700, 3120), "45m est · 52m actual"),
+        ((2700, 0), "45m est"),
+        ((nil, 3120), "52m actual"),
+        ((nil, 0), nil),
+        // A timer that just started counts as actual time.
+        ((1500, 0.5), "25m est · <1m actual"),
+    ] as [((TimeInterval?, TimeInterval), String?)])
+    func taskBadge(seconds: (estimate: TimeInterval?, actual: TimeInterval), text: String?) {
+        #expect(TimeFormatting.taskBadge(estimateSeconds: seconds.estimate, actualSeconds: seconds.actual) == text)
     }
 }
