@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-28 17:05 PT
 
 import Foundation
 import SwiftData
@@ -121,17 +121,33 @@ struct TaskListModelTests {
         #expect(model.durationText.isEmpty)
     }
 
-    @Test("Checking the running task is Done: the timer ends and the task leaves the open list")
+    @Test("Checking the running task is Done: the timer ends, and the task stays in its row, checked")
     func checkingTheRunningTaskIsDone() throws {
         let task = service.createTask(title: "Write intro", in: note)
+        let next = service.createTask(title: "Research", in: note)
         engine.start(task: task, seconds: 1500)
         let sessionID = try #require(engine.activeTimer?.sessionID)
 
         model.toggleDone(task)
+        model.send(TaskListModel.tasksChanged(model.tasks(in: note)))
 
         #expect(engine.activeTimer == nil)
         #expect(service.session(withID: sessionID)?.outcome == .done)
-        #expect(model.openTasks(in: note).isEmpty)
+        #expect(model.tasks(in: note) == [task, next])
+        #expect(task.isDone)
+        #expect(model.flow.done == [task.id])
+    }
+
+    @Test("Unchecking a task leaves it in its row")
+    func uncheckingKeepsTheRow() {
+        let first = service.createTask(title: "Outline", in: note)
+        let task = service.createTask(title: "Write intro", in: note)
+        model.toggleDone(task)
+
+        model.toggleDone(task)
+
+        #expect(model.tasks(in: note) == [first, task])
+        #expect(!task.isDone)
     }
 
     @Test("Deleting the running task stops the timer, and the session ends as deleted")
@@ -144,7 +160,7 @@ struct TaskListModelTests {
 
         #expect(engine.activeTimer == nil)
         #expect(service.session(withID: sessionID)?.outcome == .deleted)
-        #expect(model.openTasks(in: note).isEmpty)
+        #expect(model.tasks(in: note).isEmpty)
     }
 
     @Test("⌫ on an empty row deletes the task, and the rename on the lost focus does nothing")
@@ -156,7 +172,7 @@ struct TaskListModelTests {
         model.send(.deleteBackwardOnEmpty(id: empty.id))
         model.send(.rowFocusLost(id: empty.id, title: ""))
 
-        #expect(model.openTasks(in: note) == [keep])
+        #expect(model.tasks(in: note) == [keep])
         #expect(model.flow.focus == .task(keep.id))
     }
 
@@ -183,5 +199,103 @@ struct TaskListModelTests {
         #expect(model.draftText.isEmpty)
         #expect(model.flow.inline == nil)
         #expect(model.flow.rows == [task.id])
+    }
+
+    // MARK: - Time badge
+
+    @Test("The badge shows the estimate and the actual time, which counts the running timer without paused time")
+    func badgeCountsTheRunningTimer() {
+        let task = service.createTask(title: "Write intro", in: note)
+        #expect(model.timeBadge(for: task, at: clock.now) == nil)
+
+        engine.start(task: task, seconds: 1500)
+        service.setEstimate(1500, for: task)
+        clock.advance(by: 20)
+        #expect(model.timeBadge(for: task, at: clock.now) == "25m est · <1m actual")
+
+        clock.advance(by: 100)
+        engine.pause()
+        clock.advance(by: 600)
+        #expect(model.timeBadge(for: task, at: clock.now) == "25m est · 2m actual")
+
+        engine.resume()
+        engine.extend(seconds: 300)
+        clock.advance(by: 1740)
+        engine.checkExpiry()
+        #expect(model.timeBadge(for: task, at: clock.now) == "25m est · 31m actual")
+
+        engine.done()
+        #expect(model.timeBadge(for: task, at: clock.now) == "25m est · 31m actual")
+        #expect(task.sessions?.first?.activeSeconds == 1860)
+    }
+
+    @Test("The badge adds up every session of the task, and a task with no estimate shows only the actual time")
+    func badgeSumsSessions() {
+        let task = service.createTask(title: "Write intro", in: note)
+        engine.start(task: task, seconds: 600)
+        clock.advance(by: 300)
+        engine.stop()
+        engine.start(task: task, seconds: 600)
+        clock.advance(by: 450)
+        engine.stop()
+
+        #expect(model.timeBadge(for: task, at: clock.now) == "12m actual")
+    }
+
+    // MARK: - Reorder
+
+    @Test(arguments: [
+        // ((source, gap), index after the move)
+        ((0, 0), nil), ((0, 1), nil), ((0, 2), 1), ((0, 4), 3),
+        ((3, 0), 0), ((3, 3), nil), ((3, 4), nil), ((2, 0), 0), ((1, 3), 2),
+    ] as [((Int, Int), Int?)])
+    func dropDestination(drop: (source: Int, gap: Int), index: Int?) {
+        #expect(TaskListModel.destination(from: drop.source, gap: drop.gap) == index)
+    }
+
+    @Test("The pointer's height picks the gap: the number of rows whose middle is above it")
+    func dropGapFromHeight() {
+        let midYs: [CGFloat] = [15, 45, 75]
+
+        #expect(TaskDropDelegate.gap(forY: 0, rowMidYs: midYs) == 0)
+        #expect(TaskDropDelegate.gap(forY: 14, rowMidYs: midYs) == 0)
+        #expect(TaskDropDelegate.gap(forY: 16, rowMidYs: midYs) == 1)
+        #expect(TaskDropDelegate.gap(forY: 60, rowMidYs: midYs) == 2)
+        #expect(TaskDropDelegate.gap(forY: 200, rowMidYs: midYs) == 3)
+        #expect(TaskDropDelegate.gap(forY: 10, rowMidYs: []) == 0)
+    }
+
+    @Test("Dropping a dragged task in a gap moves it there, and done tasks count as rows")
+    func dropMovesTheTask() {
+        let tasks = ["A", "B", "C", "D"].map { service.createTask(title: $0, in: note) }
+        service.toggleDone(tasks[1])
+        model.send(TaskListModel.tasksChanged(model.tasks(in: note)))
+
+        model.beginDrag(tasks[3])
+        model.dragMoved(toGap: 1)
+        #expect(model.dropGap == 1)
+        #expect(model.drop(atGap: 1))
+
+        #expect(model.tasks(in: note).map(\.title) == ["A", "D", "B", "C"])
+        #expect(model.draggedTaskID == nil)
+        #expect(model.dropGap == nil)
+        #expect(tasks[1].isDone)
+    }
+
+    @Test("The gaps next to the dragged task show no drop line, and a drop there changes nothing")
+    func dropNextToItselfDoesNothing() {
+        let tasks = ["A", "B", "C"].map { service.createTask(title: $0, in: note) }
+        model.send(TaskListModel.tasksChanged(tasks))
+
+        model.beginDrag(tasks[1])
+        model.dragMoved(toGap: 2)
+        #expect(model.dropGap == nil)
+        model.dragMoved(toGap: 3)
+        #expect(model.dropGap == 3)
+        model.dragMoved(toGap: nil)
+        #expect(model.dropGap == nil)
+
+        #expect(!model.drop(atGap: 1))
+        #expect(model.tasks(in: note) == tasks)
     }
 }
