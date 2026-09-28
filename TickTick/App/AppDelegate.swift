@@ -1,11 +1,12 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
 import os
 
 /// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), the alarm
 /// (`AlarmController`), the quick-add panel with its global hotkey (`QuickAddController`), the Notes window
-/// (`NotesWindowController`), and the Dock icon and keyboard focus rules (`ActivationPolicyController`).
+/// (`NotesWindowController`), the Dock icon and keyboard focus rules (`ActivationPolicyController`), and the Settings
+/// window with the switches that it saves (`SettingsWindowController`, `Preferences`, `GlobalHotkeys`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -24,6 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var quickAddController: QuickAddController?
     private(set) var activationPolicyController: ActivationPolicyController?
     private(set) var notesWindowController: NotesWindowController?
+    private(set) var settingsWindowController: SettingsWindowController?
+    private(set) var globalHotkeys: GlobalHotkeys?
     /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
     private var fallbackStatusItem: NSStatusItem?
 
@@ -53,9 +56,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             activation: activation
         )
         notesWindowController = notes
-        statusItemController = StatusItemController(engine: core.timerEngine, activation: activation) { noteID in
-            notes.open(selecting: noteID)
-        }
+        let preferences = Preferences()
+        let settings = SettingsWindowController(
+            preferences: preferences,
+            launchAtLogin: LaunchAtLoginModel(),
+            activation: activation
+        )
+        settingsWindowController = settings
+        let statusItem = StatusItemController(
+            engine: core.timerEngine,
+            activation: activation,
+            preferences: preferences,
+            openNotes: { noteID in notes.open(selecting: noteID) },
+            openSettings: { settings.open() }
+        )
+        statusItemController = statusItem
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
         alarm.startSyncingNotifications()
         let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {
@@ -63,6 +78,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         quickAdd.registerHotkey()
         quickAddController = quickAdd
+        let hotkeys = GlobalHotkeys(preferences: preferences)
+        hotkeys.registerTogglePopover { [weak statusItem] in statusItem?.togglePopoverFromHotkey() }
+        globalHotkeys = hotkeys
+    }
+
+    /// The Settings… menu item (⌘,). It does nothing when the data store could not open.
+    func openSettings() {
+        settingsWindowController?.open()
     }
 
     /// The menu of the fallback item. The normal item has the popover, with its own Quit button.

@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 20:16 PT
 
 import AppKit
 import Testing
@@ -112,6 +112,15 @@ struct ActivationPolicyControllerTests {
         try controller.activateForClick(Self.event(.leftMouseUp))
 
         #expect(host.activationCount == 0)
+    }
+
+    @Test("The open-popover hotkey activates TickTick, but not again while it is active")
+    func hotkeyActivates() {
+        controller.activateForHotkey()
+        #expect(host.activationCount == 1)
+
+        controller.activateForHotkey()
+        #expect(host.activationCount == 1)
     }
 
     // MARK: - Windows
