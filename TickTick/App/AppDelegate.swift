@@ -1,10 +1,10 @@
-// Last edited: 2026-09-24 16:55 PT
+// Last edited: 2026-09-24 17:58 PT
 
 import AppKit
 import os
 
-/// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), and the alarm
-/// (`AlarmController`).
+/// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), the alarm
+/// (`AlarmController`), and the quick-add panel with its global hotkey (`QuickAddController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var core: AppCore?
     private(set) var statusItemController: StatusItemController?
     private(set) var alarmController: AlarmController?
+    private(set) var quickAddController: QuickAddController?
     /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
     private var fallbackStatusItem: NSStatusItem?
 
@@ -44,6 +45,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController = StatusItemController(engine: core.timerEngine)
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
         alarm.startSyncingNotifications()
+        let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {
+            try core.modelStore.bootstrapInbox()
+        }
+        quickAdd.registerHotkey()
+        quickAddController = quickAdd
     }
 
     /// The menu of the fallback item. The normal item has the popover, with its own Quit button.

@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 16:43 PT
+// Last edited: 2026-09-24 17:58 PT
 
 import AppKit
 import SwiftUI
@@ -169,7 +169,7 @@ private struct IdleTimerView: View {
         VStack(spacing: 4) {
             Text("No timer running")
                 .font(.headline)
-            // TT-7 adds this global shortcut.
+            // The quick-add hotkey (`KeyboardShortcuts.Name.quickAdd`).
             Text("New task: ⌃⌥Space")
                 .font(.callout)
                 .foregroundStyle(.secondary)
