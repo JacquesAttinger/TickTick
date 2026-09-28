@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-24 19:09 PT
 
 import AppKit
 import SwiftUI
@@ -14,19 +14,26 @@ struct TimerPopoverView: View {
     var presentationID = 0
     /// Makes the popover take key presses. The "+custom" field calls it before it takes focus.
     var prepareForTyping: () -> Void = {}
+    /// Opens the Notes window and selects the note with the ID, or the Inbox for nil. It closes the popover.
+    var openNotes: (UUID?) -> Void = { _ in }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Group {
                 if let model {
-                    ActiveTimerView(model: model, engine: engine, prepareForTyping: prepareForTyping)
+                    ActiveTimerView(
+                        model: model,
+                        engine: engine,
+                        prepareForTyping: prepareForTyping,
+                        openNote: { openNotes(engine.activeTask?.note?.id) }
+                    )
                 } else {
                     IdleTimerView()
                 }
             }
             .padding(16)
             Divider()
-            PopoverFooter()
+            PopoverFooter(openNotes: { openNotes(nil) })
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
         }
@@ -54,6 +61,8 @@ private struct ActiveTimerView: View {
     let model: TimerPopoverModel
     let engine: TimerEngine
     let prepareForTyping: () -> Void
+    /// Opens the Notes window with the running task's note selected.
+    let openNote: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -79,14 +88,14 @@ private struct ActiveTimerView: View {
             HStack {
                 Text(model.noteTitle)
                     .lineLimit(1)
+                    .foregroundStyle(.secondary)
                 Spacer()
-                // TT-8 makes this open the note in the Notes window.
-                Button("Open ↗") {}
+                // In the link color, so it looks like something to click.
+                Button("Open ↗", action: openNote)
                     .buttonStyle(.link)
-                    .disabled(true)
+                    .help("Open this note in the Notes window")
             }
             .font(.callout)
-            .foregroundStyle(.secondary)
         }
     }
 
@@ -181,11 +190,11 @@ private struct IdleTimerView: View {
 
 /// Links to the other windows, and Quit.
 private struct PopoverFooter: View {
+    let openNotes: () -> Void
+
     var body: some View {
         HStack(spacing: 14) {
-            // TT-8 makes this open the Notes window.
-            Button("Open Notes") {}
-                .disabled(true)
+            Button("Open Notes", action: openNotes)
             // TT-11 makes this open the Settings window.
             Button("Settings…") {}
                 .disabled(true)

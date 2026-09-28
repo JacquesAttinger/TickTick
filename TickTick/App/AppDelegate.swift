@@ -1,10 +1,11 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-24 19:09 PT
 
 import AppKit
 import os
 
 /// Owns the app's data and timer objects (`AppCore`), the menu bar item (`StatusItemController`), the alarm
-/// (`AlarmController`), and the quick-add panel with its global hotkey (`QuickAddController`).
+/// (`AlarmController`), the quick-add panel with its global hotkey (`QuickAddController`), the Notes window
+/// (`NotesWindowController`), and the Dock icon and keyboard focus rules (`ActivationPolicyController`).
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     nonisolated static let bundleIdentifier = "com.jacquesattinger.TickTick"
@@ -21,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) var statusItemController: StatusItemController?
     private(set) var alarmController: AlarmController?
     private(set) var quickAddController: QuickAddController?
+    private(set) var activationPolicyController: ActivationPolicyController?
+    private(set) var notesWindowController: NotesWindowController?
     /// Only when the data store cannot open: a plain `⏱` item with a Quit menu, so the app can still quit.
     private var fallbackStatusItem: NSStatusItem?
 
@@ -42,7 +45,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // launched the app reaches it.
         let alarm = AlarmController.makeForApp(engine: core.timerEngine)
         alarmController = alarm
-        statusItemController = StatusItemController(engine: core.timerEngine)
+        let activation = ActivationPolicyController()
+        activationPolicyController = activation
+        let notes = NotesWindowController(service: core.taskService, activation: activation)
+        notesWindowController = notes
+        statusItemController = StatusItemController(engine: core.timerEngine, activation: activation) { noteID in
+            notes.open(selecting: noteID)
+        }
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
         alarm.startSyncingNotifications()
         let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {

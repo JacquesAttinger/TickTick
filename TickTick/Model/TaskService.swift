@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:17 PT
+// Last edited: 2026-09-24 19:09 PT
 
 import Foundation
 import os
@@ -147,6 +147,35 @@ final class TaskService {
     }
 
     // MARK: - Queries
+
+    /// Every note in sidebar order: the Inbox first, then the other notes by `sortIndex`.
+    /// `createdAt` and `id` only break ties.
+    func sidebarNotes() -> [Note] {
+        let notes: [Note]
+        do {
+            notes = try context.fetch(FetchDescriptor<Note>())
+        } catch {
+            Self.logger.error("Fetching the notes failed: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+        return notes.filter { !$0.isDeleted }.sorted { lhs, rhs in
+            if lhs.isInbox != rhs.isInbox {
+                return lhs.isInbox
+            }
+            if lhs.sortIndex != rhs.sortIndex {
+                return lhs.sortIndex < rhs.sortIndex
+            }
+            if lhs.createdAt != rhs.createdAt {
+                return lhs.createdAt < rhs.createdAt
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+    }
+
+    /// The note with this ID, or nil when it does not exist (for example, after it was deleted).
+    func note(withID id: UUID) -> Note? {
+        first(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id }))
+    }
 
     /// The task with this ID, or nil when it does not exist (for example, after it was deleted).
     func task(withID id: UUID) -> TaskItem? {
