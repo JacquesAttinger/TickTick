@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-28 16:55 PT
 
 import Foundation
 import Testing
@@ -128,6 +128,17 @@ struct TaskListFlowTests {
         #expect(flow.handle(.startRequested(seconds: 300)) == [
             .startTimer(taskID: first, seconds: 300, replacing: false),
         ])
+    }
+
+    @Test("▶ on a done task does nothing")
+    func playOnADoneTaskDoesNothing() {
+        var flow = TaskListFlow()
+        _ = flow.handle(.tasksChanged([first, second], done: [second]))
+
+        _ = flow.handle(.playTapped(id: second))
+
+        #expect(flow.inline == nil)
+        #expect(flow.focus == .draft)
     }
 
     @Test("▶ on a task that is not in the list does nothing")
@@ -333,7 +344,18 @@ extension TaskListFlowTests {
         #expect(flow.focus == .task(third))
     }
 
-    @Test("When the prompt's task leaves the list (checked or deleted), the prompt closes")
+    @Test("When the prompt's task is checked (Done in the popover), the prompt closes and the row stays")
+    func promptClosesWhenItsTaskIsChecked() {
+        var flow = flowWithPromptOnNewTask()
+
+        _ = flow.handle(.tasksChanged([first, second, third], done: [third]))
+
+        #expect(flow.inline == nil)
+        #expect(flow.rows == [first, second, third])
+        #expect(flow.done == [third])
+    }
+
+    @Test("When the prompt's task is deleted, the prompt closes")
     func promptClosesWhenItsTaskLeaves() {
         var flow = flowWithPromptOnNewTask()
 
@@ -341,6 +363,20 @@ extension TaskListFlowTests {
 
         #expect(flow.inline == nil)
         #expect(flow.focus == .draft)
+    }
+
+    @Test("A checked or moved task keeps its row and the focus")
+    func focusStaysOnACheckedOrMovedTask() {
+        var flow = flowWithThreeTasks()
+        _ = flow.handle(.focusChanged(.task(second)))
+
+        _ = flow.handle(.tasksChanged([first, second, third], done: [second]))
+        #expect(flow.focus == .task(second))
+
+        _ = flow.handle(.tasksChanged([second, first, third], done: [second]))
+        #expect(flow.focus == .task(second))
+        _ = flow.handle(.moveDown)
+        #expect(flow.focus == .task(first))
     }
 
     @Test("When the focused task leaves the list, the row now in its place gets the focus")
@@ -372,78 +408,5 @@ extension TaskListFlowTests {
                 #expect(harness.focusIsValid, "Focus \(harness.flow.focus) is not a row in \(harness.flow.rows)")
             }
         }
-    }
-}
-
-/// Runs a flow like `TaskListModel` does: it saves created tasks, deletes deleted ones, and sends the results back.
-private struct FlowHarness {
-    private(set) var flow = TaskListFlow()
-    private var tasks: [UUID] = []
-    private var timerIsActive = false
-
-    var focusIsValid: Bool {
-        let focusExists = switch flow.focus {
-        case .draft: true
-        case let .task(id): flow.rows.contains(id)
-        }
-        let inlineExists = flow.inline.map { flow.rows.contains($0.taskID) } ?? true
-        return focusExists && inlineExists
-    }
-
-    mutating func send(_ event: TaskListFlow.Event) {
-        for effect in flow.handle(event) {
-            switch effect {
-            case .createTask:
-                let id = UUID()
-                tasks.append(id)
-                send(.taskCreated(id: id))
-            case let .deleteTask(id):
-                tasks.removeAll { $0 == id }
-                send(.tasksChanged(tasks))
-            case .renameTask:
-                break
-            case let .startTimer(_, _, replacing):
-                if timerIsActive, !replacing {
-                    send(.engineNeedsConfirmation)
-                } else {
-                    timerIsActive = true
-                    send(.timerStarted)
-                }
-            }
-        }
-    }
-
-    /// A random user action, or a random change from outside the window (a task checked in the popover).
-    mutating func randomEvent(using generator: inout SeededGenerator) -> TaskListFlow.Event {
-        let someTask = tasks.randomElement(using: &generator) ?? UUID()
-        let events: [TaskListFlow.Event] = [
-            .submitDraft(title: "Task"), .submitDraft(title: " "), .draftFocusLost(title: "Task"),
-            .submitRow(id: someTask, title: "Renamed"), .rowFocusLost(id: someTask, title: ""),
-            .playTapped(id: someTask), .startRequested(seconds: 60), .skipDuration, .confirmSwitch, .cancelSwitch,
-            .deleteBackwardOnEmpty(id: someTask), .deleteBackwardOnEmptyDraft, .moveUp, .moveDown,
-            .focusChanged(.task(someTask)), .focusChanged(.draft),
-        ]
-        if Int.random(in: 0 ..< 10, using: &generator) == 0, !tasks.isEmpty {
-            tasks.remove(at: Int.random(in: 0 ..< tasks.count, using: &generator))
-            return .tasksChanged(tasks)
-        }
-        return events.randomElement(using: &generator) ?? .moveUp
-    }
-}
-
-/// A small repeatable random number generator (SplitMix64), so a failing sequence can be run again.
-struct SeededGenerator: RandomNumberGenerator {
-    private var state: UInt64
-
-    init(seed: UInt64) {
-        state = seed
-    }
-
-    mutating func next() -> UInt64 {
-        state &+= 0x9E37_79B9_7F4A_7C15
-        var value = state
-        value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
-        value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
-        return value ^ (value >> 31)
     }
 }
