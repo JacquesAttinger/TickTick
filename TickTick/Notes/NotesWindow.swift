@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 19:20 PT
 
 import AppKit
 import SwiftUI
@@ -15,12 +15,14 @@ final class NotesWindowController {
     static let minimumSize = CGSize(width: 560, height: 360)
 
     private let service: TaskService
+    private let engine: TimerEngine
     private let activation: ActivationPolicyController
     private let sidebar: NotesSidebarModel
     private var window: NSWindow?
 
-    init(service: TaskService, activation: ActivationPolicyController) {
+    init(service: TaskService, engine: TimerEngine, activation: ActivationPolicyController) {
         self.service = service
+        self.engine = engine
         self.activation = activation
         sidebar = NotesSidebarModel(service: service)
     }
@@ -39,7 +41,9 @@ final class NotesWindowController {
     }
 
     private func makeWindow() -> NSWindow {
-        let hostingController = NSHostingController(rootView: NotesRootView(sidebar: sidebar, service: service))
+        let hostingController = NSHostingController(
+            rootView: NotesRootView(sidebar: sidebar, service: service, engine: engine)
+        )
         // SwiftUI sets only the smallest size (from `NotesRootView`). You set the size, and the window keeps it.
         hostingController.sizingOptions = [.minSize]
         let window = NSWindow(contentViewController: hostingController)
@@ -60,6 +64,7 @@ final class NotesWindowController {
 struct NotesRootView: View {
     let sidebar: NotesSidebarModel
     let service: TaskService
+    let engine: TimerEngine
 
     var body: some View {
         NavigationSplitView {
@@ -67,7 +72,8 @@ struct NotesRootView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
         } detail: {
             if let note = sidebar.selectedNote {
-                NoteDetailView(note: note, openTasks: service.openTasks(in: note))
+                NoteDetailView(note: note, service: service, engine: engine)
+                    .id(note.id)
             }
         }
         .frame(minWidth: NotesWindowController.minimumSize.width, minHeight: NotesWindowController.minimumSize.height)

@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-24 19:20 PT
 
 import AppKit
 import os
@@ -47,7 +47,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alarmController = alarm
         let activation = ActivationPolicyController()
         activationPolicyController = activation
-        let notes = NotesWindowController(service: core.taskService, activation: activation)
+        let notes = NotesWindowController(
+            service: core.taskService,
+            engine: core.timerEngine,
+            activation: activation
+        )
         notesWindowController = notes
         statusItemController = StatusItemController(engine: core.timerEngine, activation: activation) { noteID in
             notes.open(selecting: noteID)
