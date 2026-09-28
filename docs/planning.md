@@ -111,6 +111,7 @@ TickTickTests/
 - The pre-commit hook (SwiftFormat + SwiftLint) must pass. Never use `--no-verify`.
 - `make test` passes. New pure logic gets tests.
 - Do the issue's Verify steps on the real app (`make install`, then open TickTick) and look closely at the UI. Fix anything that looks wrong.
+  To keep your real tasks out of a test run, launch with a throwaway store: `open build/Build/Products/Debug/TickTick.app --args -debugStorePath /tmp/ticktick-test/TickTick.store`.
 - Before you report done, quit TickTick and kill every process you started.
 
 ## Steps (one Linear issue each)

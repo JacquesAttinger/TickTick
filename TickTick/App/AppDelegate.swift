@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-28 17:30 PT
 
 import AppKit
 import os
@@ -101,8 +101,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return menu
     }
 
+    /// The app's objects on the real store, or on the test store of `-debugStorePath` (`DebugStoreLaunch`).
     private static func openCore() -> AppCore? {
         do {
+            if let core = try DebugStoreLaunch.openCore(arguments: DebugTimerLaunch.launchArguments) {
+                logger.notice("Opened the debug store")
+                return core
+            }
             return try AppCore(modelStore: ModelStore())
         } catch {
             logger.fault("Opening the data store failed: \(error.localizedDescription, privacy: .public)")

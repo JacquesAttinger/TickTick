@@ -1,6 +1,6 @@
 # TT-10: Reorder, in-place completion, time badges
 
-<!-- Last edited: 2026-09-28 17:50 PT -->
+<!-- Last edited: 2026-09-28 17:35 PT -->
 
 **TLDR:** When you check a task in the Notes window, it stays in its row with a filled checkbox, like a checklist in Apple Notes.
 Before this change, a checked task went away and you could not see it again.
@@ -41,6 +41,7 @@ Decision 14, the behavior defaults, TT-10, the folder layout, and verification s
 - `TickTick/Notes/TaskReorder.swift` (new): the drag type, `TaskDragHandle`, `TaskDropDelegate`, and `DropLine`.
 - `TickTick/Notes/TaskTimeBadge.swift` (new): the live badge.
 - `TickTick/Notes/TaskRowView.swift` and `NoteDetailView.swift`: the grip column, the done state, the badge, the row frames, and the drop line.
+- `TickTick/App/DebugStoreLaunch.swift` (new): the `-debugStorePath PATH` launch argument opens a throwaway store and saves the timer under its own key, so an end-to-end test never touches your real tasks.
 - `TickTickTests/TaskListFlowHarness.swift` (new): the random-event harness moved out of `TaskListFlowTests.swift` (500-line limit), and it now also checks, unchecks, and moves tasks.
 
 ## Verify
