@@ -1,9 +1,12 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-28 17:20 PT
 
 import SwiftUI
 
-/// One open task in the Notes window: a checkbox, the title as a text field, the live timer of the running task,
-/// and ▶, which shows on hover and on the row with the keyboard focus.
+/// One task in the Notes window: the drag handle, a checkbox, the title as a text field, the time badge, the live
+/// timer of the running task, and ▶. The handle and ▶ show on hover and on the row with the keyboard focus.
+///
+/// A done task keeps its row, like a checked item in an Apple Notes checklist: the checkbox is filled, and ▶ does
+/// not show. Its title can still be edited, and a click on the checkbox unchecks it in place.
 ///
 /// Return or a click elsewhere saves the title, and Esc keeps the old title. An emptied title keeps the old one
 /// too. ⌘↩ is ▶ and ⇧⌘C checks the task, both on the row with the focus. "Delete" is in the right-click menu
@@ -47,18 +50,25 @@ struct TaskRowView: View {
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Self.iconSpacing) {
-            checkbox
-            titleField
-            if let timer = model.activeTimer(for: task) {
-                RunningTimerBadge(timer: timer)
+        HStack(spacing: 0) {
+            TaskDragHandle(title: task.title, isShown: isHovered || hasFocus) {
+                model.beginDrag(task)
             }
-            playButton
+            HStack(alignment: .firstTextBaseline, spacing: Self.iconSpacing) {
+                checkbox
+                titleField
+                TaskTimeBadge(task: task, model: model)
+                if let timer = model.activeTimer(for: task) {
+                    RunningTimerBadge(timer: timer)
+                }
+                playButton
+            }
+            .taskRowChrome(hasFocus: hasFocus, isHovered: isHovered)
+            .overlay {
+                TaskRowMenu(isEditing: hasFocus) { model.delete(task) }
+            }
         }
-        .taskRowChrome(hasFocus: hasFocus, isHovered: isHovered)
-        .overlay {
-            TaskRowMenu(isEditing: hasFocus) { model.delete(task) }
-        }
+        // The handle's column counts too, so the handle stays while the pointer moves onto it.
         .onHover { isHovered = $0 }
         .accessibilityAction(named: "Delete") { model.delete(task) }
         .onChange(of: hasFocus) { _, focused in
@@ -87,8 +97,12 @@ struct TaskRowView: View {
         }
         .buttonStyle(.plain)
         .keyboardShortcut(hasFocus ? ShortcutCatalog.markDoneKeys : nil)
-        .help("Mark as done (\(ShortcutCatalog.markDone.keysText))")
-        .accessibilityLabel("Mark as done")
+        .help("\(checkboxLabel) (\(ShortcutCatalog.markDone.keysText))")
+        .accessibilityLabel(checkboxLabel)
+    }
+
+    private var checkboxLabel: String {
+        task.isDone ? "Mark as not done" : "Mark as done"
     }
 
     /// One line. A long title ends in "…", and while you edit it, it scrolls in its line like any Mac text field.
@@ -113,8 +127,9 @@ struct TaskRowView: View {
             )
     }
 
+    /// A done task gets no timer, so its ▶ never shows.
     private var playButton: some View {
-        let isShown = isHovered || hasFocus
+        let isShown = (isHovered || hasFocus) && !task.isDone
         return Button {
             model.send(.playTapped(id: task.id))
         } label: {
@@ -124,7 +139,7 @@ struct TaskRowView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(hasFocus ? ShortcutCatalog.startTimerKeys : nil)
+        .keyboardShortcut(hasFocus && !task.isDone ? ShortcutCatalog.startTimerKeys : nil)
         .help("Start a timer (\(ShortcutCatalog.startTimer.keysText))")
         .accessibilityLabel("Start a timer")
         // Hidden, not removed, so the title does not get wider and narrower as the pointer moves.
@@ -186,6 +201,8 @@ struct DraftRowView: View {
                 )
         }
         .taskRowChrome(hasFocus: focus.wrappedValue == .draft, isHovered: false)
+        // The empty column under the task rows' drag handles, so the `+` lines up with the checkboxes.
+        .padding(.leading, TaskDragHandle.width)
     }
 }
 
