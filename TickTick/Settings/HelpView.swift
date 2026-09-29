@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:46 PT
+// Last edited: 2026-09-29 10:54 PT
 
 import SwiftUI
 
@@ -50,7 +50,7 @@ struct HelpView: View {
 
     /// One form row for each shortcut: the keys on the left, in a column of the same width, then the description.
     /// Not one `Grid` in a single row: the form measures such a row too short when a description wraps. A shortcut
-    /// that is off is dimmed and says "Off", like the popover keys on the Shortcuts tab.
+    /// that is off is dimmed, like the popover keys on the Shortcuts tab, and also says "Off".
     private func shortcutRow(_ info: ShortcutInfo, isOn: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(info.keysText)
