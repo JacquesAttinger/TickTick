@@ -1,4 +1,4 @@
-<!-- Last edited: 2026-09-29 11:55 PT -->
+<!-- Last edited: 2026-09-29 12:05 PT -->
 <a id="readme-top"></a>
 
 [![Contributors][contributors-shield]][contributors-url]
@@ -8,6 +8,10 @@
 
 <br />
 <div align="center">
+  <a href="https://github.com/JacquesAttinger/TickTick">
+    <img src="images/logo.png" alt="TickTick logo" width="80" height="80">
+  </a>
+
   <h3 align="center">TickTick</h3>
 
   <p align="center">
@@ -45,6 +49,16 @@
 </details>
 
 ## About The Project
+
+<p align="center">
+  <img src="images/screenshot-menubar.png" alt="The TickTick menu bar item shows the task name and the time left" height="32">
+</p>
+
+<p align="center">
+  <img src="images/screenshot-popover.png" alt="The TickTick popover shows the time left, a progress bar, and buttons to extend, pause, stop, or finish the task" width="300">
+  &nbsp;&nbsp;
+  <img src="images/screenshot-notes.png" alt="The TickTick Notes window shows a note as a list of tasks with time badges" width="480">
+</p>
 
 TickTick is a timeboxing to-do app for the Mac.
 You write a task, you say how long it will take, and a countdown starts in the menu bar.
@@ -199,7 +213,7 @@ Code rules:
 - [x] Notes window with tasks, drag to reorder, and time badges
 - [x] Settings, launch at login, and keyboard shortcuts
 - [ ] Help tab in Settings
-- [ ] Full visual check and polish pass, and a screenshot for this README
+- [ ] Full visual check and polish pass
 
 See the [open issues](https://github.com/JacquesAttinger/TickTick/issues) for more, and [`docs/planning.md`](docs/planning.md) for the full plan.
 
