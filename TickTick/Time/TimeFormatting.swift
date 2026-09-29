@@ -1,8 +1,9 @@
-// Last edited: 2026-09-24 15:40 PT
+// Last edited: 2026-09-28 16:45 PT
 
 import Foundation
 
-/// Turns seconds and dates into the text that the menu bar, the popover, and the quick-add preview show.
+/// Turns seconds and dates into the text that the menu bar, the popover, the quick-add preview, and the task rows
+/// show.
 enum TimeFormatting {
     /// The longest task name, in characters, that the menu bar shows without a cut.
     static let menuBarNameLimit = 24
@@ -31,6 +32,34 @@ enum TimeFormatting {
         case (_, 0): return "\(hours) h"
         default: return "\(hours) h \(minutes) min"
         }
+    }
+
+    /// A short duration for a task row's badge: `<1m`, `45m`, `1h 30m`, or `2h`.
+    /// It rounds down to whole minutes, so a live count goes up one minute after each full minute.
+    static func compact(_ seconds: TimeInterval) -> String {
+        let totalMinutes = wholeNumber((seconds / 60).rounded(.down))
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        switch (hours, minutes) {
+        case (0, 0): return "<1m"
+        case (0, _): return "\(minutes)m"
+        case (_, 0): return "\(hours)h"
+        default: return "\(hours)h \(minutes)m"
+        }
+    }
+
+    /// The time badge of a task row, for example `45m est · 52m actual` (product decision 14).
+    /// It shows only the parts that exist: no estimate part without an estimate, and no actual part while the task
+    /// has no timer time. Nil when neither part exists.
+    static func taskBadge(estimateSeconds: TimeInterval?, actualSeconds: TimeInterval) -> String? {
+        var parts: [String] = []
+        if let estimateSeconds {
+            parts.append("\(compact(estimateSeconds)) est")
+        }
+        if actualSeconds > 0 {
+            parts.append("\(compact(actualSeconds)) actual")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// A short time of day in the style of the locale: `3:42 PM` (en_US) or `15:42` (de_DE).

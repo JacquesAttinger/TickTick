@@ -35,7 +35,7 @@ Menubar Countdown and the `menubar-timer` MCP server in `~/code/tools/menubar-ti
 | 11 | Alarm | White overlay flashes 3 times on every display in about 1.5 s. Clicks pass through. Sound plays once. Banner notification top right. If Reduce Motion is on: one slow fade instead of 3 flashes. |
 | 12 | After zero | Menu bar turns red and counts up (`+2:13`) until Done, +5 min, or Stop. The notification has the same 3 buttons. |
 | 13 | Storage | SwiftData, local only. Models stay CloudKit-compatible so iCloud sync can come later. |
-| 14 | Notes extras | Drag to reorder tasks. Collapsible "Completed (n)" section. Per-row badge `⏱ 45m est · 52m actual`. |
+| 14 | Notes extras | Drag to reorder tasks. A checked task stays in its place with a filled checkbox, like an Apple Notes checklist (changed on 2026-09-28: no separate "Completed (n)" section). Per-row badge `⏱ 45m est · 52m actual`. |
 | 15 | System extras | Launch at login. Global quick-add hotkey (default ⌃⌥Space, task goes to "Inbox" note). Popover keys: Space pause/resume, D done, S stop, 1 / 5 / 0 = +1 / +5 / +10 min. Global open-popover hotkey (default ⌃⌥T). |
 | 15b | Settings | A Settings window with an on/off toggle for each item in row 15, hotkey recorders, and a Help tab that explains every feature and every shortcut. |
 | 16 | Claude Code | No remote control (no URL scheme, no AppleScript). |
@@ -51,7 +51,7 @@ Menubar Countdown and the `menubar-timer` MCP server in `~/code/tools/menubar-ti
 - **Check the box of the running task:** the same as Done.
 - **Delete the running task:** stops the timer. The session is saved with outcome `deleted`.
 - **Rename the running task:** the menu bar updates live.
-- **Uncheck a completed task:** it goes back to its old position in the open list.
+- **Check or uncheck a task:** it stays in its place. A done task shows a filled checkbox and gets no ▶.
 - **Alarm sound:** the system sound "Glass". It is not configurable in v1.
 - **Notification permission:** requested on first launch. If you deny it, flash and sound still work, and the popover shows a hint.
 - **Quit:** the popover always has "Quit TickTick", because the app often has no Dock icon.
@@ -97,7 +97,7 @@ TickTick/
   MenuBar/    StatusItemController.swift, TimerPopoverView.swift
   Alarm/      FlashController.swift, AlarmSound.swift, NotificationController.swift
   QuickAdd/   QuickAddPanel.swift, QuickAddView.swift, DurationPromptView.swift
-  Notes/      NotesWindow.swift, NoteSidebarView.swift, NoteDetailView.swift, TaskRowView.swift, CompletedSectionView.swift
+  Notes/      NotesWindow.swift, NoteSidebarView.swift, NoteDetailView.swift, TaskRowView.swift, TaskReorder.swift, TaskTimeBadge.swift
   Settings/   SettingsView.swift, GeneralSettingsView.swift, ShortcutsSettingsView.swift, HelpView.swift, ShortcutCatalog.swift
   Resources/  Assets.xcassets, Info.plist, TickTick.entitlements
 TickTickTests/
@@ -111,6 +111,7 @@ TickTickTests/
 - The pre-commit hook (SwiftFormat + SwiftLint) must pass. Never use `--no-verify`.
 - `make test` passes. New pure logic gets tests.
 - Do the issue's Verify steps on the real app (`make install`, then open TickTick) and look closely at the UI. Fix anything that looks wrong.
+  To keep your real tasks out of a test run, launch with a throwaway store: `open build/Build/Products/Debug/TickTick.app --args -debugStorePath /tmp/ticktick-test/TickTick.store`.
 - Before you report done, quit TickTick and kill every process you started.
 
 ## Steps (one Linear issue each)
@@ -216,10 +217,10 @@ Each issue has "blocked by" relations that match the graph above.
 - **Scope:** `NoteDetailView` + `TaskRowView`: checkbox, editable title, ▶ button on hover. A new empty row is always at the bottom. Return on a row saves it and shows `DurationPromptView` inline under it (decision 6). The prompt then creates the next empty row. ▶ opens the same prompt. Switch confirmation when a timer runs. ⌫ on an empty row deletes it and moves focus up. ↑ / ↓ move between rows. The running task's row shows a live indicator. Check the running task = Done. Delete the running task = stop.
 - **Acceptance:** type 3 tasks: the first gets `25` + Return (timer starts), and the other two get Esc (no timer). Then ▶ on the third asks to switch. Every rule in "Behavior defaults" works in the UI.
 
-#### TT-10 · Reorder, Completed section, time badges (TOD-16)
+#### TT-10 · Reorder, in-place completion, time badges (TOD-16)
 
 - **Depends on:** TT-9.
-- **Scope:** drag to reorder open tasks (writes `sortIndex` through `TaskService`). A collapsible "Completed (n)" section under the open tasks, with its collapsed state saved per note. Uncheck returns the task to its old position. Badge `⏱ 45m est · 52m actual`: show only the parts that exist, and update the actual time live while the task's timer runs.
+- **Scope:** drag to reorder tasks, open and done (writes `sortIndex` through `TaskService`). A checked task stays in its row with a filled checkbox, like an Apple Notes checklist, and unchecking it leaves it there too (this replaces the "Completed (n)" section, on 2026-09-28). Badge `⏱ 45m est · 52m actual`: show only the parts that exist, and update the actual time live while the task's timer runs.
 - **Acceptance:** reorder and completion survive a relaunch. The badges match the `TimerSession` data after a pause, an extend, and overtime.
 
 ### M3 — Settings, keyboard, polish
@@ -249,7 +250,7 @@ Each issue has "blocked by" relations that match the graph above.
 3. Click the menu bar item: every popover field is correct. +1m, then Pause (the label shows `⏸`, time frozen), then Resume.
 4. At zero: 3 flashes on every display, the Glass sound, and a banner. The label turns red and counts `+0:0x`.
 5. Banner "+5 min" → running again. Wait for the next expiry → popover Done → the task is checked in Inbox.
-6. Open Notes (the Dock icon appears). New note, 3 tasks, the confirm flow, a switch prompt, reorder, check and uncheck, the Completed section, and est/actual badges.
+6. Open Notes (the Dock icon appears). New note, 3 tasks, the confirm flow, a switch prompt, reorder, check and uncheck (the task stays in place), and est/actual badges.
 7. Close Notes → the Dock icon goes away.
 8. Start a 2 min timer, sleep the Mac for 3 min, wake it → the alarm fires once, and overtime shows about +1:00.
 9. Start a timer, quit TickTick, relaunch → the timer is restored and correct.

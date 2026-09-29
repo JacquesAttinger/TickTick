@@ -1,10 +1,11 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-28 17:05 PT
 
 import Foundation
 import Observation
 import os
 
-/// The task list of one note in the Notes window: the flow, the text of the draft row, and the typed duration.
+/// The task list of one note in the Notes window: the flow, the text of the draft row, the typed duration, and the
+/// drag that reorders the rows.
 ///
 /// `NoteDetailView` shows it and sends it events. It runs the flow's effects on the real data: tasks change through
 /// `TaskService`, and timers start through `TimerEngine`. Checking or deleting the running task needs no special
@@ -20,6 +21,11 @@ final class TaskListModel {
     var draftText = ""
     /// Owned here, not by the duration field, so a cancelled switch question gives the typed duration back.
     var durationText = ""
+    /// The task whose handle is being dragged. A drag that is cancelled leaves it set until the next drag starts.
+    private(set) var draggedTaskID: UUID?
+    /// The gap where the dragged task would land, for the drop line: 0 is above the first row, and `rows.count` is
+    /// below the last one. Nil when the pointer is not over the list, or when a drop there would not move the task.
+    private(set) var dropGap: Int?
 
     @ObservationIgnored private let service: TaskService
     @ObservationIgnored private let engine: TimerEngine
@@ -30,9 +36,15 @@ final class TaskListModel {
         self.engine = engine
     }
 
-    /// The note's open tasks, top to bottom. Read it in a view's body, so the view follows every change to them.
-    func openTasks(in note: Note) -> [TaskItem] {
-        service.openTasks(in: note)
+    /// All the note's tasks, open and done, top to bottom. Read it in a view's body, so the view follows every
+    /// change to them.
+    func tasks(in note: Note) -> [TaskItem] {
+        service.tasks(in: note)
+    }
+
+    /// The flow's event for the tasks as they are now: their order, and which are done.
+    static func tasksChanged(_ tasks: [TaskItem]) -> TaskListFlow.Event {
+        .tasksChanged(tasks.map(\.id), done: Set(tasks.filter(\.isDone).map(\.id)))
     }
 
     /// Feeds one event to the flow and runs the effects it returns.
@@ -62,6 +74,61 @@ final class TaskListModel {
     /// The active timer when it belongs to `task`, or nil.
     func activeTimer(for task: TaskItem) -> ActiveTimer? {
         engine.activeTimer.flatMap { $0.taskID == task.id ? $0 : nil }
+    }
+
+    /// The row's badge at `now`, for example `45m est · 52m actual`, or nil when the task has neither.
+    /// The actual time counts the running timer too, so it goes up live.
+    func timeBadge(for task: TaskItem, at now: Date) -> String? {
+        let running = activeTimer(for: task)?.activeSeconds(at: now) ?? 0
+        return TimeFormatting.taskBadge(
+            estimateSeconds: task.estimateSeconds,
+            actualSeconds: service.actualSeconds(for: task) + running
+        )
+    }
+
+    // MARK: - Reorder
+
+    /// A drag on the row's handle started.
+    func beginDrag(_ task: TaskItem) {
+        draggedTaskID = task.id
+        dropGap = nil
+    }
+
+    /// The pointer is over `gap` during a drag, or left the list (nil). Shows the drop line only where a drop
+    /// would move the task.
+    func dragMoved(toGap gap: Int?) {
+        dropGap = gap.flatMap { gap in destination(forGap: gap) == nil ? nil : gap }
+    }
+
+    /// Drops the dragged task in `gap`. Returns false, and changes nothing, when the drop would not move it.
+    @discardableResult
+    func drop(atGap gap: Int) -> Bool {
+        defer {
+            draggedTaskID = nil
+            dropGap = nil
+        }
+        guard let index = destination(forGap: gap), let id = draggedTaskID, let task = service.task(withID: id) else {
+            return false
+        }
+        service.moveTask(task, to: index)
+        return true
+    }
+
+    /// Where the dragged task goes when dropped in `gap`, as an index for `TaskService.moveTask`, or nil when the
+    /// drop would not move it (the gaps just above and below the task itself).
+    private func destination(forGap gap: Int) -> Int? {
+        guard let id = draggedTaskID, let source = flow.rows.firstIndex(of: id) else {
+            return nil
+        }
+        return Self.destination(from: source, gap: min(max(gap, 0), flow.rows.count))
+    }
+
+    /// The index after the move for a task at `source` that is dropped in `gap`, or nil when it would not move.
+    static func destination(from source: Int, gap: Int) -> Int? {
+        if gap == source || gap == source + 1 {
+            return nil
+        }
+        return gap > source ? gap - 1 : gap
     }
 
     /// The switch question for the active timer at `now`, or nil when no question shows.

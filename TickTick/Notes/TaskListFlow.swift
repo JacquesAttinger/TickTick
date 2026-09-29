@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-28 16:50 PT
 
 import Foundation
 
@@ -6,7 +6,8 @@ import Foundation
 /// and runs the effects it returns, so tests can check every Return, Esc, ⌫, arrow, ▶, and switch rule without a
 /// window.
 ///
-/// The list is the note's open tasks, then one empty draft row at the bottom. Return on the draft saves a new task
+/// The list is all the note's tasks, open and done, then one empty draft row at the bottom. A checked task stays in
+/// its row, like in an Apple Notes checklist, but it gets no prompt. Return on the draft saves a new task
 /// and opens the "How long?" prompt under it (product decision 6). Return in the prompt starts the timer, and Esc
 /// keeps the task without a timer. ▶ opens the same prompt on any row. When another timer is active, the prompt
 /// asks first (decision 8). `focus` always names a row that exists: a task in `rows`, or the draft.
@@ -32,8 +33,9 @@ struct TaskListFlow: Equatable {
     }
 
     enum Event: Equatable {
-        /// The note's open tasks, top to bottom, after a change (also a change from outside the window).
-        case tasksChanged([UUID])
+        /// The note's tasks, top to bottom, and which of them are done, after a change (also a change from outside
+        /// the window, like Done in the popover).
+        case tasksChanged([UUID], done: Set<UUID> = [])
         /// Return on the draft row.
         case submitDraft(title: String)
         /// The draft row lost the keyboard focus.
@@ -77,8 +79,10 @@ struct TaskListFlow: Equatable {
         case startTimer(taskID: UUID, seconds: TimeInterval, replacing: Bool)
     }
 
-    /// The IDs of the note's open tasks, top to bottom. The draft row comes after them.
+    /// The IDs of the note's tasks, open and done, top to bottom. The draft row comes after them.
     private(set) var rows: [UUID] = []
+    /// The rows whose task is done. ▶ does nothing on them.
+    private(set) var done: Set<UUID> = []
     /// The row with the keyboard focus, or the row under which `inline` shows.
     private(set) var focus: Row = .draft
     private(set) var inline: Inline?
@@ -106,8 +110,8 @@ struct TaskListFlow: Equatable {
 
     private mutating func handleList(_ event: Event) -> [Effect] {
         switch event {
-        case let .tasksChanged(ids):
-            sync(ids)
+        case let .tasksChanged(ids, done):
+            sync(ids, done: done)
         case let .submitDraft(text):
             guard let title = NotesSidebarModel.title(from: text) else {
                 return []
@@ -149,13 +153,15 @@ struct TaskListFlow: Equatable {
         return []
     }
 
-    private mutating func sync(_ ids: [UUID]) {
+    private mutating func sync(_ ids: [UUID], done: Set<UUID>) {
         let old = rows
         rows = ids
-        if let inline, !ids.contains(inline.taskID) {
+        self.done = done
+        // The prompt's task was deleted, or checked (for example with Done in the popover).
+        if let inline, !ids.contains(inline.taskID) || done.contains(inline.taskID) {
             closeInline()
         }
-        // The focused task left the list (checked or deleted): the row that is now in its place gets the focus.
+        // The focused task left the list (deleted): the row that is now in its place gets the focus.
         if case let .task(id) = focus, !ids.contains(id) {
             let index = old.firstIndex(of: id) ?? ids.count
             focus = index < ids.count ? .task(ids[index]) : .draft
@@ -196,7 +202,7 @@ struct TaskListFlow: Equatable {
     private mutating func handleInline(_ event: Event) -> [Effect] {
         switch (inline, event) {
         case let (_, .playTapped(id)):
-            if rows.contains(id) {
+            if rows.contains(id), !done.contains(id) {
                 open(.prompt(taskID: id))
             }
         case let (.prompt(id)?, .startRequested(seconds)):

@@ -1,10 +1,11 @@
-// Last edited: 2026-09-24 19:56 PT
+// Last edited: 2026-09-28 17:25 PT
 
 import AppKit
 import SwiftUI
 
-/// The right side of the Notes window: the selected note's title, its open tasks as rows, and the empty draft row
-/// at the bottom. Under the row being timed, it shows "How long?" or the switch question.
+/// The right side of the Notes window: the selected note's title, all its tasks as rows (a done task keeps its place,
+/// checked), and the empty draft row at the bottom. Under the row being timed, it shows "How long?" or the switch
+/// question. A row's handle drags it to a new place, and a line shows where it will land.
 ///
 /// The keyboard focus follows `TaskListFlow.focus`. While the prompt or the question shows, no row has the focus:
 /// the prompt's field takes it, and the question answers Return and Esc. A click in a row reports the new focus
@@ -15,12 +16,16 @@ struct NoteDetailView: View {
     /// The space between the edge of the prompt's box and its content.
     static let inlinePadding: CGFloat = 12
     private static let inlineID = "inline"
+    /// The coordinate space of the rows, for the row heights and the drop position.
+    private nonisolated static let rowsSpace = "taskRows"
 
     let note: Note
     @State private var model: TaskListModel
     @FocusState private var focusedRow: TaskListFlow.Row?
     /// The row that the flow (a key press) gave the focus to. Its caret goes to the end of the title.
     @State private var keyboardFocusRow: TaskListFlow.Row?
+    /// Each task row's frame in `rowsSpace`, for the drop position and the drop line.
+    @State private var rowFrames: [UUID: CGRect] = [:]
 
     init(note: Note, service: TaskService, engine: TimerEngine) {
         self.note = note
@@ -28,7 +33,7 @@ struct NoteDetailView: View {
     }
 
     var body: some View {
-        let tasks = model.openTasks(in: note)
+        let tasks = model.tasks(in: note)
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -37,15 +42,17 @@ struct NoteDetailView: View {
                         .lineLimit(2)
                         .textSelection(.enabled)
                     rows(tasks)
-                        // The checkboxes line up with the title. Only the row highlight reaches past it.
-                        .padding(.horizontal, -TaskRowView.horizontalInset)
+                        // The checkboxes line up with the title. Only the row highlight and the drag handles reach
+                        // past it.
+                        .padding(.leading, -(TaskRowView.horizontalInset + TaskDragHandle.width))
+                        .padding(.trailing, -TaskRowView.horizontalInset)
                 }
                 .padding(.horizontal, 28)
                 .padding(.vertical, 20)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .onChange(of: tasks.map(\.id), initial: true) { _, ids in
-                model.send(.tasksChanged(ids))
+            .onChange(of: TaskListModel.tasksChanged(tasks), initial: true) { _, event in
+                model.send(event)
             }
             .onChange(of: model.flow.focus) {
                 applyFlowFocus(proxy)
@@ -60,7 +67,8 @@ struct NoteDetailView: View {
     }
 
     private func rows(_ tasks: [TaskItem]) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        let frames = tasks.compactMap { rowFrames[$0.id] }
+        return VStack(alignment: .leading, spacing: 2) {
             ForEach(tasks, id: \.id) { task in
                 TaskRowView(
                     task: task,
@@ -68,6 +76,9 @@ struct NoteDetailView: View {
                     focus: $focusedRow,
                     placesCaretAtEnd: keyboardFocusRow == .task(task.id)
                 )
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.rowsSpace)) } action: { frame in
+                    rowFrames[task.id] = frame
+                }
                 .id(TaskListFlow.Row.task(task.id))
                 if model.flow.inline?.taskID == task.id {
                     inlineContent
@@ -77,6 +88,24 @@ struct NoteDetailView: View {
             DraftRowView(model: model, focus: $focusedRow)
                 .id(TaskListFlow.Row.draft)
         }
+        .coordinateSpace(.named(Self.rowsSpace))
+        .overlay(alignment: .topLeading) {
+            if let gap = model.dropGap, let lineY = Self.dropLineY(gap: gap, frames: frames) {
+                DropLine()
+                    .padding(.leading, TaskDragHandle.width + TaskRowView.horizontalInset - 3)
+                    .offset(y: lineY - 3.5)
+            }
+        }
+        .onDrop(of: [.tickTickTaskRow], delegate: TaskDropDelegate(model: model, rowMidYs: frames.map(\.midY)))
+    }
+
+    /// The height of the drop line for `gap`: in the space between two rows, above the first row, or below the
+    /// last one. Nil while the row frames are not known yet.
+    private static func dropLineY(gap: Int, frames: [CGRect]) -> CGFloat? {
+        if gap < frames.count {
+            return frames[gap].minY - 1
+        }
+        return frames.last.map { $0.maxY + 1 }
     }
 
     /// "How long?" or the switch question in a light box. Its text lines up with the row titles above.
@@ -108,9 +137,9 @@ struct NoteDetailView: View {
         .padding(.vertical, 4)
     }
 
-    /// Where a row's title starts, from the left edge of the row.
+    /// Where a row's title starts, from the left edge of the row (the left edge of its drag handle).
     private static var titleOffset: CGFloat {
-        TaskRowView.horizontalInset + TaskRowView.iconColumnWidth + TaskRowView.iconSpacing
+        TaskDragHandle.width + TaskRowView.horizontalInset + TaskRowView.iconColumnWidth + TaskRowView.iconSpacing
     }
 
     /// Moves the keyboard to where the flow says, and scrolls it into view.

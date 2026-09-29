@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:04 PT
+// Last edited: 2026-09-28 16:40 PT
 
 import Foundation
 import SwiftData
@@ -161,10 +161,11 @@ struct TaskServiceTests {
 
     // MARK: - Check and uncheck
 
-    @Test("toggleDone checks a task, sets completedAt, and keeps sortIndex")
+    @Test("toggleDone checks a task in place: completedAt is set and sortIndex stays")
     func toggleDoneChecks() {
         service.createTask(title: "A", in: inbox)
         let task = service.createTask(title: "B", in: inbox)
+        service.createTask(title: "C", in: inbox)
         let sortIndex = task.sortIndex
 
         service.toggleDone(task)
@@ -172,50 +173,38 @@ struct TaskServiceTests {
         #expect(task.isDone)
         #expect(task.completedAt != nil)
         #expect(task.sortIndex == sortIndex)
-        #expect(openTitles(in: inbox) == ["A"])
-        #expect(service.completedTasks(in: inbox).map(\.title) == ["B"])
+        #expect(titles(in: inbox) == ["A", "B", "C"])
+        #expect(openTitles(in: inbox) == ["A", "C"])
     }
 
-    @Test("toggleDone unchecks a task and clears completedAt")
+    @Test("toggleDone unchecks a task in place and clears completedAt")
     func toggleDoneUnchecks() {
-        let task = service.createTask(title: "A", in: inbox)
+        service.createTask(title: "A", in: inbox)
+        let task = service.createTask(title: "B", in: inbox)
+        service.createTask(title: "C", in: inbox)
         service.toggleDone(task)
 
         service.toggleDone(task)
 
         #expect(!task.isDone)
         #expect(task.completedAt == nil)
-        #expect(service.completedTasks(in: inbox).isEmpty)
+        #expect(openTitles(in: inbox) == ["A", "B", "C"])
     }
 
-    @Test("uncheck returns the task to its old position")
-    func uncheckReturnsToOldPosition() throws {
+    @Test("A done task stays between its neighbors while other tasks move or are added")
+    func doneTaskKeepsItsPlace() throws {
         for title in ["A", "B", "C", "D"] {
             service.createTask(title: title, in: inbox)
         }
-        let task = try openTask("B")
+        let checked = try task("B")
+        service.toggleDone(checked)
 
-        service.toggleDone(task)
-        #expect(openTitles(in: inbox) == ["A", "C", "D"])
-        service.toggleDone(task)
-
-        #expect(openTitles(in: inbox) == ["A", "B", "C", "D"])
-    }
-
-    @Test("uncheck returns the task between its old neighbors after other tasks moved or were added")
-    func uncheckAfterOtherChanges() throws {
-        for title in ["A", "B", "C", "D"] {
-            service.createTask(title: title, in: inbox)
-        }
-        let task = try openTask("B")
-        service.toggleDone(task)
-
-        try service.moveTask(openTask("D"), to: 0)
+        try service.moveTask(task("D"), to: 0)
         service.createTask(title: "E", in: inbox, at: 1)
-        #expect(openTitles(in: inbox) == ["D", "E", "A", "C"])
-        service.toggleDone(task)
+        #expect(titles(in: inbox) == ["D", "E", "A", "B", "C"])
+        service.toggleDone(checked)
 
-        #expect(openTitles(in: inbox) == ["D", "E", "A", "B", "C"])
+        #expect(titles(in: inbox) == ["D", "E", "A", "B", "C"])
     }
 
     // MARK: - Move
@@ -226,12 +215,27 @@ struct TaskServiceTests {
             service.createTask(title: title, in: inbox)
         }
 
-        try service.moveTask(openTask("A"), to: 2)
-        #expect(openTitles(in: inbox) == ["B", "C", "A", "D"])
+        try service.moveTask(task("A"), to: 2)
+        #expect(titles(in: inbox) == ["B", "C", "A", "D"])
 
-        try service.moveTask(openTask("D"), to: 0)
-        #expect(openTitles(in: inbox) == ["D", "B", "C", "A"])
-        #expect(service.openTasks(in: inbox).map(\.sortIndex) == [0, 1, 2, 3])
+        try service.moveTask(task("D"), to: 0)
+        #expect(titles(in: inbox) == ["D", "B", "C", "A"])
+        #expect(service.tasks(in: inbox).map(\.sortIndex) == [0, 1, 2, 3])
+    }
+
+    @Test("moveTask counts done tasks, and a done task can move too")
+    func moveTaskWithDoneTasks() throws {
+        for title in ["A", "B", "C", "D"] {
+            service.createTask(title: title, in: inbox)
+        }
+        try service.toggleDone(task("B"))
+
+        try service.moveTask(task("D"), to: 1)
+        #expect(titles(in: inbox) == ["A", "D", "B", "C"])
+
+        try service.moveTask(task("B"), to: 3)
+        #expect(titles(in: inbox) == ["A", "D", "C", "B"])
+        #expect(try task("B").isDone)
     }
 
     @Test("moveTask puts an index out of range at the nearest end")
@@ -240,16 +244,16 @@ struct TaskServiceTests {
             service.createTask(title: title, in: inbox)
         }
 
-        try service.moveTask(openTask("A"), to: 99)
-        #expect(openTitles(in: inbox) == ["B", "C", "A"])
+        try service.moveTask(task("A"), to: 99)
+        #expect(titles(in: inbox) == ["B", "C", "A"])
 
-        try service.moveTask(openTask("A"), to: -1)
-        #expect(openTitles(in: inbox) == ["A", "B", "C"])
+        try service.moveTask(task("A"), to: -1)
+        #expect(titles(in: inbox) == ["A", "B", "C"])
     }
 
     // MARK: - Queries
 
-    @Test("openTasks and completedTasks list only the note's own tasks")
+    @Test("tasks and openTasks list only the note's own tasks")
     func listsAreScopedToTheNote() {
         let errands = service.createNote(title: "Errands")
         service.createTask(title: "Inbox task", in: inbox)
@@ -257,23 +261,9 @@ struct TaskServiceTests {
         service.createTask(title: "Post letter", in: errands)
         service.toggleDone(errand)
 
-        #expect(openTitles(in: inbox) == ["Inbox task"])
-        #expect(service.completedTasks(in: inbox).isEmpty)
+        #expect(titles(in: inbox) == ["Inbox task"])
+        #expect(titles(in: errands) == ["Buy milk", "Post letter"])
         #expect(openTitles(in: errands) == ["Post letter"])
-        #expect(service.completedTasks(in: errands).map(\.title) == ["Buy milk"])
-    }
-
-    @Test("completedTasks lists the most recently completed task first")
-    func completedTasksNewestFirst() throws {
-        for title in ["A", "B", "C"] {
-            service.createTask(title: title, in: inbox)
-        }
-
-        for title in ["A", "C", "B"] {
-            try service.toggleDone(openTask(title))
-        }
-
-        #expect(service.completedTasks(in: inbox).map(\.title) == ["B", "C", "A"])
     }
 
     @Test("actualSeconds sums sessions")
@@ -310,13 +300,17 @@ struct TaskServiceTests {
         try store.context.fetch(FetchDescriptor<Note>(sortBy: [SortDescriptor(\.sortIndex)]))
     }
 
+    private func titles(in note: Note) -> [String] {
+        service.tasks(in: note).map(\.title)
+    }
+
     private func openTitles(in note: Note) -> [String] {
         service.openTasks(in: note).map(\.title)
     }
 
-    /// The Inbox's open task with this title. Titles are unique in these tests.
-    private func openTask(_ title: String) throws -> TaskItem {
-        try #require(service.openTasks(in: inbox).first { $0.title == title })
+    /// The Inbox's task with this title, open or done. Titles are unique in these tests.
+    private func task(_ title: String) throws -> TaskItem {
+        try #require(service.tasks(in: inbox).first { $0.title == title })
     }
 
     private func addSession(to task: TaskItem, activeSeconds: TimeInterval) {

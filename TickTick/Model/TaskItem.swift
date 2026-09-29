@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 14:58 PT
+// Last edited: 2026-09-28 16:40 PT
 
 import Foundation
 import SwiftData
@@ -13,7 +13,7 @@ final class TaskItem {
     var createdAt: Date = Date.now
     var isDone: Bool = false
     var completedAt: Date?
-    /// Position in the note. A done task keeps its value, so unchecking it puts it back in its old place.
+    /// Position in the note. Checking or unchecking the task does not change it, so the task stays in its place.
     var sortIndex: Int = 0
     var estimateSeconds: TimeInterval?
     var note: Note?
