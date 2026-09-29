@@ -1,4 +1,4 @@
-<!-- Last edited: 2026-09-29 12:40 CDT -->
+<!-- Last edited: 2026-09-29 19:10 CDT -->
 <a id="readme-top"></a>
 
 [![Contributors][contributors-shield]][contributors-url]
@@ -104,13 +104,14 @@ You build it from source and copy it to `/Applications`.
 
 - macOS 26 or later, with Xcode installed at `/Applications/Xcode.app`.
 - [Homebrew](https://brew.sh).
-- Point the command-line tools at Xcode one time (this needs `sudo`):
+- Optional: point the command-line tools at Xcode one time (this needs `sudo`):
 
   ```sh
   sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
   ```
 
-  If `xcode-select -p` shows `/Library/Developer/CommandLineTools`, `xcodebuild` fails and SwiftLint crashes.
+  If `xcode-select -p` shows `/Library/Developer/CommandLineTools`, a bare `xcodebuild` fails and SwiftLint crashes.
+  The `make` targets and the pre-commit hook use `/Applications/Xcode.app` in that case, so they work without this step.
 
 ### Installation
 

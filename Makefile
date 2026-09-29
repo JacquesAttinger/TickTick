@@ -1,4 +1,4 @@
-# Last edited: 2026-09-22 12:45 PT
+# Last edited: 2026-09-29 19:05 CDT
 # Developer commands for TickTick. Run scripts/setup.sh once before the first `make`.
 
 PROJECT := TickTick.xcodeproj
@@ -6,6 +6,14 @@ SCHEME := TickTick
 DERIVED := build
 XCODEBUILD := xcodebuild -project $(PROJECT) -scheme $(SCHEME) -derivedDataPath $(DERIVED) -allowProvisioningUpdates
 RELEASE_APP := $(DERIVED)/Build/Products/Release/TickTick.app
+
+# xcodebuild and SwiftLint need Xcode, not the Command Line Tools.
+# When xcode-select points at the Command Line Tools, use /Applications/Xcode.app for these commands.
+ifeq ($(findstring .app,$(shell xcode-select -p)),)
+ifneq ($(wildcard /Applications/Xcode.app),)
+export DEVELOPER_DIR := /Applications/Xcode.app/Contents/Developer
+endif
+endif
 
 .PHONY: gen build test lint format install
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Last edited: 2026-09-22 12:20 PT
+# Last edited: 2026-09-29 19:10 CDT
 # One-time developer setup: installs the build and lint tools, then activates the committed git hooks.
 set -euo pipefail
 
@@ -22,6 +22,7 @@ git -C "$repo_root" config core.hooksPath .githooks
 echo "Git hooks are active (core.hooksPath = .githooks)."
 
 if [[ "$(xcode-select -p)" != *Xcode*.app* ]]; then
-  echo "warning: xcode-select points at $(xcode-select -p), so xcodebuild will fail." >&2
-  echo "Run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
+  echo "note: xcode-select points at $(xcode-select -p)." >&2
+  echo "The make targets and the git hook use /Applications/Xcode.app instead, so a bare xcodebuild is the only thing that fails." >&2
+  echo "To fix it everywhere, run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer" >&2
 fi
