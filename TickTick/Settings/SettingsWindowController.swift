@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:50 PT
+// Last edited: 2026-09-29 10:40 PT
 
 import AppKit
 import SwiftUI
@@ -93,7 +93,7 @@ final class SettingsWindowController {
         switch tab {
         case .general: AnyView(GeneralSettingsView(launchAtLogin: launchAtLogin))
         case .shortcuts: AnyView(ShortcutsSettingsView(preferences: preferences))
-        case .help: AnyView(HelpView())
+        case .help: AnyView(HelpView(preferences: preferences))
         }
     }
 }

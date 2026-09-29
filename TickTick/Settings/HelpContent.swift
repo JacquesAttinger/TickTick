@@ -1,6 +1,7 @@
-// Last edited: 2026-09-29 10:35 PT
+// Last edited: 2026-09-29 10:40 PT
 
 import Foundation
+import KeyboardShortcuts
 
 /// One section of the Help tab: a title and short paragraphs of plain text.
 struct HelpSection: Identifiable {
@@ -17,9 +18,10 @@ struct HelpSection: Identifiable {
 /// handlers use, so Help cannot show other keys than the app uses.
 @MainActor
 enum HelpContent {
-    /// The feature sections, in order. They read the hotkeys' current keys, so a new recording shows here too.
-    static var sections: [HelpSection] {
-        [createTask, timeTask, menuBar, popover, timeIsUp, notes, settings]
+    /// The feature sections, in order. They read the hotkeys' current keys and the switches in `preferences`, so the
+    /// text follows the Shortcuts tab.
+    static func sections(preferences: Preferences) -> [HelpSection] {
+        [createTask(preferences), timeTask, menuBar, popover(preferences), timeIsUp, notes, settings]
     }
 
     /// Every shortcut, in one group for each scope.
@@ -27,24 +29,45 @@ enum HelpContent {
         ShortcutCatalog.grouped
     }
 
-    /// The keys of a global hotkey for a sentence, for example `⌃⌥Space`. With no keys (`keysText` is "None"), it
-    /// points to the Shortcuts tab.
-    static func hotkeyText(keys: String, name: String) -> String {
-        keys == "None" ? "the \(name) hotkey (record its keys on the Shortcuts tab)" : keys
+    /// Whether a shortcut works now: a global hotkey needs its switch on and keys, the popover keys need their
+    /// switch on. The Notes window keys are always on.
+    static func isOn(_ info: ShortcutInfo, preferences: Preferences) -> Bool {
+        switch info.keys {
+        case let .hotkey(name):
+            hotkeyIsOn(name, preferences: preferences) && KeyboardShortcuts.getShortcut(for: name) != nil
+        case .command, .plain:
+            info.scope != .popover || preferences.popoverKeysEnabled
+        }
     }
 
-    private static var quickAddKeys: String {
-        hotkeyText(keys: ShortcutCatalog.quickAdd.keysText, name: "Quick add")
+    /// A global hotkey for a sentence: its keys, for example `⌃⌥Space`, or where to turn it on when it is off or has
+    /// no keys.
+    static func hotkeyText(keys: KeyboardShortcuts.Shortcut?, title: String, isOn: Bool) -> String {
+        guard isOn else { return "the \(title) hotkey (turn it on in the Shortcuts tab)" }
+        guard let keys else { return "the \(title) hotkey (record its keys in the Shortcuts tab)" }
+        return keys.description
     }
 
-    private static var togglePopoverKeys: String {
-        hotkeyText(keys: ShortcutCatalog.togglePopover.keysText, name: "Open the popover")
+    private static func hotkeyIsOn(_ name: KeyboardShortcuts.Name, preferences: Preferences) -> Bool {
+        switch name {
+        case .quickAdd: preferences.quickAddHotkeyEnabled
+        case .togglePopover: preferences.togglePopoverHotkeyEnabled
+        default: true
+        }
     }
 
-    private static var createTask: HelpSection {
-        HelpSection(title: "Create a task", paragraphs: [
-            "Press \(quickAddKeys) in any app. Type the task and press Return. "
-                + "Quick add saves the task in the Inbox note.",
+    private static func hotkeyText(_ name: KeyboardShortcuts.Name, title: String, preferences: Preferences) -> String {
+        hotkeyText(
+            keys: KeyboardShortcuts.getShortcut(for: name),
+            title: title,
+            isOn: hotkeyIsOn(name, preferences: preferences)
+        )
+    }
+
+    private static func createTask(_ preferences: Preferences) -> HelpSection {
+        let keys = hotkeyText(.quickAdd, title: "Quick add", preferences: preferences)
+        return HelpSection(title: "Create a task", paragraphs: [
+            "Press \(keys) in any app. Type the task and press Return. Quick add saves the task in the Inbox note.",
             "Then “How long?” asks for a time. Press Return to start the timer, or press Esc to keep the task with "
                 + "no timer.",
             "Type 25 for 25 minutes. 90m, 1h, 1h30, and 1:30 also work. You can also click 5, 15, 25, 45, or 60 min. "
@@ -74,15 +97,19 @@ enum HelpContent {
         ])
     }
 
-    private static var popover: HelpSection {
-        HelpSection(title: "The popover", paragraphs: [
-            "Click the menu bar item, or press \(togglePopoverKeys), to open the popover.",
+    private static func popover(_ preferences: Preferences) -> HelpSection {
+        let keys = hotkeyText(.togglePopover, title: "Open the popover", preferences: preferences)
+        let singleKeys = preferences.popoverKeysEnabled
+            ? "They are in the table below."
+            : "They are off now. Turn them on in the Shortcuts tab."
+        return HelpSection(title: "The popover", paragraphs: [
+            "Click the menu bar item, or press \(keys), to open the popover.",
             "It shows the task, its note (Open ↗ opens the note), the time left, a progress bar, the start and end "
                 + "times, the estimate, and the date.",
             "+1m, +5m, and +10m add time. +custom adds the minutes that you type.",
             "Pause stops the clock, and Resume starts it again. Stop ends the timer and keeps the task open. Done ends "
                 + "the timer and checks the task.",
-            "While the popover is open and a timer is active, single keys work too. They are in the table below.",
+            "While the popover is open and a timer is active, single keys work too. \(singleKeys)",
             "Open Notes, Settings…, and Quit TickTick are at the bottom.",
         ])
     }

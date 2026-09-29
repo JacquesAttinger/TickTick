@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:35 PT
+// Last edited: 2026-09-29 10:40 PT
 
 import SwiftUI
 
@@ -9,54 +9,68 @@ struct HelpView: View {
     /// Wide enough for `⌃⌥Space`, so the keys of most shortcuts line up. Wider keys make their row wider.
     private static let keysWidth: CGFloat = 72
 
-    /// Changes each time the tab shows, so the body reads the hotkeys' keys again. `NSTabViewController` removes a
-    /// tab's view when you go to another tab, so `onAppear` runs on each return, for example after a new recording on
-    /// the Shortcuts tab.
-    @State private var appearances = 0
+    /// The switches of the Shortcuts tab. The body reads them, so a change shows here at once.
+    let preferences: Preferences
+
+    /// Changes when the hotkeys' keys can have changed, so the body reads them again. `KeyboardShortcuts` saves a new
+    /// recording in `UserDefaults`. `NSTabViewController` also removes a tab's view when you go to another tab, so
+    /// `onAppear` runs on each return.
+    @State private var refresh = 0
 
     var body: some View {
         // Read the counter so that a change runs the body again.
-        let _ = appearances // swiftlint:disable:this redundant_discardable_let
+        let _ = refresh // swiftlint:disable:this redundant_discardable_let
         Form {
-            ForEach(HelpContent.sections) { section in
+            ForEach(HelpContent.sections(preferences: preferences)) { section in
                 Section(section.title) {
                     paragraphs(section.paragraphs)
                 }
             }
             ForEach(HelpContent.shortcutGroups, id: \.scope) { group in
-                Section("Shortcuts: \(group.scope.title)") {
+                Section(group.scope.title) {
                     ForEach(group.shortcuts) { info in
-                        shortcutRow(info)
+                        shortcutRow(info, isOn: HelpContent.isOn(info, preferences: preferences))
                     }
                 }
             }
         }
         .formStyle(.grouped)
         .frame(width: SettingsWindowController.width, height: Self.height)
-        .onAppear { appearances += 1 }
+        .onAppear { refresh += 1 }
+        .task {
+            for await _ in NotificationCenter.default.notifications(named: UserDefaults.didChangeNotification) {
+                refresh += 1
+            }
+        }
     }
 
     private func paragraphs(_ paragraphs: [String]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(paragraphs, id: \.self) { paragraph in
-                Text(paragraph)
+            ForEach(paragraphs.indices, id: \.self) { index in
+                Text(paragraphs[index])
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     /// One form row for each shortcut: the keys on the left, in a column of the same width, then the description.
-    /// Not one `Grid` in a single row: the form measures such a row too short when a description wraps.
-    private func shortcutRow(_ info: ShortcutInfo) -> some View {
+    /// Not one `Grid` in a single row: the form measures such a row too short when a description wraps. A shortcut
+    /// that is off is dimmed and says "Off", like the popover keys on the Shortcuts tab.
+    private func shortcutRow(_ info: ShortcutInfo, isOn: Bool) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(info.keysText)
                 .fontWeight(.medium)
+                .foregroundStyle(isOn ? .primary : .tertiary)
                 .fixedSize()
                 .frame(minWidth: Self.keysWidth, alignment: .trailing)
             Text(info.description)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isOn ? .secondary : .tertiary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if !isOn {
+                Text("Off")
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 }
