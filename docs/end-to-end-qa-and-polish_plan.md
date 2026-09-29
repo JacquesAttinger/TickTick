@@ -1,10 +1,10 @@
 # TT-13: End-to-end QA and polish pass
 
-<!-- Last edited: 2026-09-29 12:29 CDT -->
+<!-- Last edited: 2026-09-29 18:20 CDT -->
 
 **TLDR:** All the app's features are built, so now we install the app and test every feature from the full checklist, like a real user would.
 Every bug or ugly spot we find gets fixed in this branch, and anything too big to fix here gets written down as a follow-up issue.
-One blocker remains: the Help tab (TT-12) is planned but not merged yet, so we must pull it in before checklist item 12 can pass.
+The old blocker is gone: the Help tab (TT-12) merged to `master` in PR #27, so the first step is to merge the fresh `master` into this branch and then run the whole checklist.
 
 ## Where to find it
 
@@ -24,8 +24,8 @@ This issue is the final pass: it does not add a feature, it exercises every area
 Nothing is known to be broken yet; the gap is that no one has run the full 14-item checklist on one installed build that contains every merged step.
 Each earlier issue verified its own slice, so cross-feature defects (dark mode on the external display, sleep during overtime, Focus mode, hybrid Dock after many open/close cycles, spacing between components built by different agents) can still hide.
 The fix is to run the checklist end to end, commit one focused fix per defect found, and file follow-up issues for anything too large.
-One concrete gap is already visible from the code: `TickTick/Settings/` has no Help tab, because TT-12 (TOD-15, branch `jacques/tod-15-tt-12-help-tab-in-settings`) only has a plan commit and no implementation on `master`.
-Checklist item 12 ("Help lists everything") cannot pass until TOD-15 merges, so this branch must be rebased onto `master` after that merge and before the final run.
+The Help-tab gap that stopped the first implementation run is closed: TOD-15 merged to `master` in PR #27, and `TickTick/Settings/HelpView.swift`, `TickTick/Settings/HelpContent.swift`, and `TickTickTests/HelpContentTests.swift` now exist on `origin/master`.
+This branch was cut before that merge and now sits 13 commits behind `origin/master`, so the first step is to merge the fresh `master` tip (`f37535d`) into this branch before any checklist run.
 The README acceptance criterion is already met: PRs #24 and #25 gave `README.md` a feature list and three screenshots in `images/`, so the README work here is only to re-check it and refresh screenshots if a polish fix changes the visible UI.
 
 ## Likely touched files
@@ -44,8 +44,9 @@ The exact fix files depend on what the checklist finds, so the paths above are t
 
 ## Plan
 
-1. Re-pull `master` and confirm TOD-15 (Help tab) has merged; then rebase this branch onto the fresh `master` tip.
-   If the Help tab is still missing from `master` when implementation starts, stop and report the blocker on the issue instead of building the Help tab here.
+1. `git fetch origin`, confirm `origin/master` contains PR #27 (TOD-15, Help tab; `TickTick/Settings/HelpView.swift` exists), then merge `origin/master` into this branch with a normal merge commit.
+   Do not rebase: the branch is already pushed and draft PR #26 tracks it, and a rebase would need a force-push.
+   Push the merge, and keep working on draft PR #26 instead of opening a second PR.
 2. Run checklist item 1: from a clean state, `scripts/setup.sh && make gen test lint install`, then confirm `⏱` in the menu bar and no Dock icon.
    Commit any tooling fix this surfaces.
 3. Launch the installed app against a throwaway store (`-debugStorePath /tmp/ticktick-test/TickTick.store`) and run items 2–5: quick-add, countdown label, popover fields, +1m, pause and resume, the 3-flash alarm with the Glass sound and banner, red overtime count-up, banner "+5 min", and popover Done checking the task in Inbox.
@@ -62,7 +63,8 @@ The exact fix files depend on what the checklist finds, so the paths above are t
 ## Decisions made alone
 
 - **Treat the README criterion as already satisfied.** PRs #24 and #25 added a feature list and three screenshots, so step 7 verifies instead of rewrites; the reason is to avoid redoing merged work the issue text predates.
-- **Do not implement the Help tab here if TOD-15 has not merged.** The issue lists TT-12 as a blocker and TOD-15 owns that work, so building it in this PR would duplicate an in-flight branch; the implementer stops and reports instead.
+- **Merge `master` in, do not rebase onto it.** The branch is pushed and draft PR #26 already tracks it, so a merge commit brings in the Help tab (PR #27) without a force-push; the never-force-push rule decides this.
+- **Reuse draft PR #26.** The first implementation run opened it before stopping on the blocker, so all further commits go to the same branch and PR instead of a new one.
 - **Use a throwaway store for every manual run.** `-debugStorePath /tmp/ticktick-test/TickTick.store` keeps Jacques's real tasks out of the QA data, per `docs/planning.md`.
 - **Sleep test method.** Run item 8 with `pmset sleepnow` after scheduling a wake (`sudo pmset schedule wake ...`); if `sudo` is not available to the agent, mark item 8 as "needs a hand check by Jacques" in the PR description rather than skip it silently.
 - **One commit per defect.** Small, focused commits keep the pre-commit hook fast and make a partial revert possible if one fix is wrong.
@@ -103,3 +105,16 @@ The only issue comment is from Marshall: the first planning run failed with `lau
 **What changed:** nothing was revised, because no earlier plan file exists on this branch (the branch was 0 commits ahead of `master`); this file is the first complete plan, written fresh after the retry.
 
 **Sections updated:** all sections were written new.
+
+## Revision 2
+
+**Human comment:** none.
+The bounce is from Marshall: "The implementer hit something it could not get past: TOD-15 (Help tab) not merged to master; plan step 1 says stop. Draft PR: https://github.com/JacquesAttinger/TickTick/pull/26."
+
+**What changed:** the blocker is resolved, so the plan no longer stops on it.
+TOD-15 merged to `master` in PR #27, and `HelpView.swift`, `HelpContent.swift`, and `HelpContentTests.swift` are on `origin/master` now.
+Step 1 changed from "confirm the merge or stop" to "merge `origin/master` (tip `f37535d`, 13 commits ahead of this branch) into this branch with a normal merge commit, push, and keep using draft PR #26".
+A rebase is ruled out because the branch is pushed and PR #26 tracks it, and a rebase would need a force-push.
+The brief numbers this revision 1, but this file already holds a "Revision 1" section from the retry after the failed first launch, so this section is numbered 2 to keep the headings unique.
+
+**Sections updated:** TLDR, "What is wrong and why", "Plan" (step 1), and "Decisions made alone".
