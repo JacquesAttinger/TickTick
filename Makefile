@@ -1,4 +1,4 @@
-# Last edited: 2026-09-29 19:05 CDT
+# Last edited: 2026-09-29 19:30 CDT
 # Developer commands for TickTick. Run scripts/setup.sh once before the first `make`.
 
 PROJECT := TickTick.xcodeproj
@@ -9,7 +9,9 @@ RELEASE_APP := $(DERIVED)/Build/Products/Release/TickTick.app
 
 # xcodebuild and SwiftLint need Xcode, not the Command Line Tools.
 # When xcode-select points at the Command Line Tools, use /Applications/Xcode.app for these commands.
-ifeq ($(findstring .app,$(shell xcode-select -p)),)
+# The test matches the pre-commit hook's `*Xcode*.app*` check.
+XCODE_SELECT_PATH := $(shell xcode-select -p)
+ifeq ($(and $(findstring Xcode,$(XCODE_SELECT_PATH)),$(findstring .app,$(XCODE_SELECT_PATH))),)
 ifneq ($(wildcard /Applications/Xcode.app),)
 export DEVELOPER_DIR := /Applications/Xcode.app/Contents/Developer
 endif
