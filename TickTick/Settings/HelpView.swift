@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:40 PT
+// Last edited: 2026-09-29 10:46 PT
 
 import SwiftUI
 
@@ -12,9 +12,9 @@ struct HelpView: View {
     /// The switches of the Shortcuts tab. The body reads them, so a change shows here at once.
     let preferences: Preferences
 
-    /// Changes when the hotkeys' keys can have changed, so the body reads them again. `KeyboardShortcuts` saves a new
-    /// recording in `UserDefaults`. `NSTabViewController` also removes a tab's view when you go to another tab, so
-    /// `onAppear` runs on each return.
+    /// Changes each time the tab shows, so the body reads the hotkeys' keys again. You record new keys on the
+    /// Shortcuts tab, and `NSTabViewController` removes a tab's view when you go to another tab, so `onAppear` runs
+    /// on each return to Help.
     @State private var refresh = 0
 
     var body: some View {
@@ -37,11 +37,6 @@ struct HelpView: View {
         .formStyle(.grouped)
         .frame(width: SettingsWindowController.width, height: Self.height)
         .onAppear { refresh += 1 }
-        .task {
-            for await _ in NotificationCenter.default.notifications(named: UserDefaults.didChangeNotification) {
-                refresh += 1
-            }
-        }
     }
 
     private func paragraphs(_ paragraphs: [String]) -> some View {

@@ -1,18 +1,21 @@
-// Last edited: 2026-09-29 10:40 PT
+// Last edited: 2026-09-29 10:46 PT
 
 import Foundation
 import KeyboardShortcuts
 import Testing
 @testable import TickTick
 
+/// `Preferences` has fixed keys, so these tests run one at a time. They use a suite of their own, so they can run at
+/// the same time as `PreferencesTests`.
+@Suite(.serialized)
 @MainActor
 struct HelpContentTests {
-    /// `Preferences` on a scratch suite of its own, so the tests can run at the same time as `PreferencesTests`.
-    private let suiteName = "com.jacquesattinger.TickTickTests.help.\(UUID().uuidString)"
+    private let scratch: TestPreferenceDefaults
     private let preferences: Preferences
 
     init() throws {
-        preferences = try Preferences(defaults: #require(UserDefaults(suiteName: suiteName)))
+        scratch = try TestPreferenceDefaults(suiteName: "com.jacquesattinger.TickTickTests.help")
+        preferences = Preferences(defaults: scratch.defaults)
     }
 
     @Test("Help has the seven feature sections, in order")
@@ -52,9 +55,9 @@ struct HelpContentTests {
 
         #expect(HelpContent.hotkeyText(keys: keys, title: "Quick add", isOn: true) == keys.description)
         #expect(HelpContent.hotkeyText(keys: nil, title: "Quick add", isOn: true) ==
-            "the Quick add hotkey (record its keys in the Shortcuts tab)")
+            "the “Quick add” hotkey (record its keys in the Shortcuts tab)")
         #expect(HelpContent.hotkeyText(keys: keys, title: "Quick add", isOn: false) ==
-            "the Quick add hotkey (turn it on in the Shortcuts tab)")
+            "the “Quick add” hotkey (turn it on in the Shortcuts tab)")
     }
 
     @Test("A hotkey that is off is off in Help, and the text does not tell you to press it")
@@ -63,7 +66,7 @@ struct HelpContentTests {
         let text = HelpContent.sections(preferences: preferences).flatMap(\.paragraphs)
 
         #expect(!HelpContent.isOn(ShortcutCatalog.quickAdd, preferences: preferences))
-        let off = "Press the Quick add hotkey (turn it on in the Shortcuts tab) in any app."
+        let off = "Press the “Quick add” hotkey (turn it on in the Shortcuts tab) in any app."
         #expect(text.contains { $0.hasPrefix(off) })
     }
 
@@ -77,6 +80,12 @@ struct HelpContentTests {
         #expect(text.contains { $0.hasSuffix("They are off now. Turn them on in the Shortcuts tab.") })
     }
 
+    @Test("A hotkey with its switch on is on, whatever its keys")
+    func hotkeyOnFollowsTheSwitch() {
+        #expect(HelpContent.isOn(ShortcutCatalog.quickAdd, preferences: preferences))
+        #expect(HelpContent.isOn(ShortcutCatalog.togglePopover, preferences: preferences))
+    }
+
     @Test("With the switches on, the text shows the hotkeys' current keys")
     func sectionsUseCurrentKeys() {
         let text = HelpContent.sections(preferences: preferences).flatMap(\.paragraphs)
@@ -87,7 +96,7 @@ struct HelpContentTests {
 
         #expect(text.contains { $0.hasPrefix("Press \(quickAddText) in any app.") })
         #expect(text.contains { $0.contains("press \(togglePopoverText),") })
-        #expect(text.contains { $0.hasSuffix("single keys work too. They are in the table below.") })
+        #expect(text.contains { $0.hasSuffix("single keys work too. They are in the “In the popover” table below.") })
     }
 
     @Test("Settings has a Help tab after General and Shortcuts")

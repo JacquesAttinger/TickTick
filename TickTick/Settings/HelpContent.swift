@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:40 PT
+// Last edited: 2026-09-29 10:46 PT
 
 import Foundation
 import KeyboardShortcuts
@@ -29,22 +29,22 @@ enum HelpContent {
         ShortcutCatalog.grouped
     }
 
-    /// Whether a shortcut works now: a global hotkey needs its switch on and keys, the popover keys need their
-    /// switch on. The Notes window keys are always on.
+    /// Whether the switch of a shortcut on the Shortcuts tab is on. The Notes window keys have no switch, so they are
+    /// always on. A hotkey with no keys shows "None" as its keys, not "Off".
     static func isOn(_ info: ShortcutInfo, preferences: Preferences) -> Bool {
         switch info.keys {
         case let .hotkey(name):
-            hotkeyIsOn(name, preferences: preferences) && KeyboardShortcuts.getShortcut(for: name) != nil
+            hotkeyIsOn(name, preferences: preferences)
         case .command, .plain:
             info.scope != .popover || preferences.popoverKeysEnabled
         }
     }
 
     /// A global hotkey for a sentence: its keys, for example `⌃⌥Space`, or where to turn it on when it is off or has
-    /// no keys.
+    /// no keys. `title` is the hotkey's section title on the Shortcuts tab, so you can find it there.
     static func hotkeyText(keys: KeyboardShortcuts.Shortcut?, title: String, isOn: Bool) -> String {
-        guard isOn else { return "the \(title) hotkey (turn it on in the Shortcuts tab)" }
-        guard let keys else { return "the \(title) hotkey (record its keys in the Shortcuts tab)" }
+        guard isOn else { return "the “\(title)” hotkey (turn it on in the Shortcuts tab)" }
+        guard let keys else { return "the “\(title)” hotkey (record its keys in the Shortcuts tab)" }
         return keys.description
     }
 
@@ -100,13 +100,13 @@ enum HelpContent {
     private static func popover(_ preferences: Preferences) -> HelpSection {
         let keys = hotkeyText(.togglePopover, title: "Open the popover", preferences: preferences)
         let singleKeys = preferences.popoverKeysEnabled
-            ? "They are in the table below."
+            ? "They are in the “In the popover” table below."
             : "They are off now. Turn them on in the Shortcuts tab."
         return HelpSection(title: "The popover", paragraphs: [
             "Click the menu bar item, or press \(keys), to open the popover.",
             "It shows the task, its note (Open ↗ opens the note), the time left, a progress bar, the start and end "
                 + "times, the estimate, and the date.",
-            "+1m, +5m, and +10m add time. +custom adds the minutes that you type.",
+            "+1m, +5m, and +10m add time. +custom adds a time that you type, for example 2m or 1h30.",
             "Pause stops the clock, and Resume starts it again. Stop ends the timer and keeps the task open. Done ends "
                 + "the timer and checks the task.",
             "While the popover is open and a timer is active, single keys work too. \(singleKeys)",
