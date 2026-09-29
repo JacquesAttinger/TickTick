@@ -14,7 +14,7 @@ Everything else in this step is developer tooling: `make` targets, a setup scrip
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, and it holds the TickTick menu bar timer app described in `docs/planning.md`.
+The repo is `JacquesAttinger/TickTick`, and it holds the TickTick menu bar timer app described in `docs/planning.md`.
 Today the repo contains only `README.md` (one line) and `docs/planning.md` (the full project plan).
 There is no Swift code, no project file, no Makefile, and no lint configuration.
 This issue is step TT-1 of the plan: it creates the whole scaffold that steps TT-2 through TT-13 build on.
@@ -109,7 +109,6 @@ The implement agent must check `xcode-select -p` first; if it still points at Co
 ## Out of scope found
 
 - **No CI workflow** — lint and tests run only locally and in the pre-commit hook; a GitHub Actions check would catch agents that bypass hooks.
-- **Repo name vs app name mismatch** — the repo is `TODO_TIMER` but the app is TickTick; planning.md decision 19 accepts the TickTick name, so this is cosmetic only.
 - **Root `README.md` has no license or screenshot** — TT-13 already owns the README polish pass (feature list and screenshot).
 
 ## Verification

@@ -11,7 +11,7 @@ Each step is one Linear issue that one Claude agent can do in one pull request.
 
 ## Context
 
-The repo `JacquesAttinger/TODO_TIMER` is empty (only `README.md`).
+The repo `JacquesAttinger/TickTick` is empty (only `README.md`).
 Jacques wants a timeboxing to-do app for his own Mac.
 Today he uses the third-party "Menubar Countdown" app.
 That app cannot show a task name, cannot flash the screen, and has no to-do list.
@@ -129,7 +129,7 @@ TT-2 and TT-3 can run in parallel.
 TT-5, TT-6, and TT-7 can run in parallel.
 TT-8 only needs TT-2, so it can start early if you want.
 
-Linear: team Todo_Timer, project [TODO_TIMER](https://linear.app/todo-timer/project/todo-timer-9aaae128bdbf), milestones M1 / M2 / M3.
+Linear: team TickTick, project [TickTick](https://linear.app/todo-timer/project/todo-timer-9aaae128bdbf), milestones M1 / M2 / M3.
 Each issue has "blocked by" relations that match the graph above.
 
 | Step | Linear | Milestone |

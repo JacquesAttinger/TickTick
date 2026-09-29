@@ -17,7 +17,7 @@ The engine writes one log line per change: `log show --last 5m --predicate 'subs
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
 TT-1 (TOD-5, the Xcode scaffold) is on `origin/master`.
 This branch merges the code branches of TT-2 (TOD-6, the SwiftData model and `TaskService`, PR #14) and TT-3 (TOD-7, the duration parser and time formatting, PR #13), so their code is present.
 The planned folder layout gives this issue the `TickTick/Timer/` folder: `Clock.swift`, `TimerState.swift`, `TimerEngine.swift`, and `ActiveTimerStore.swift`.

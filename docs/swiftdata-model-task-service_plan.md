@@ -14,7 +14,7 @@ Later issues (TT-4 timer engine, TT-8/TT-9 notes window) call this service; noth
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app for macOS.
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app for macOS.
 TT-1 (TOD-5) is on `origin/master`: it added `project.yml`, the `Makefile`, `TickTick/App/`, and `TickTickTests/`.
 The planned layout (`docs/planning.md`, "Folder layout") puts all data code in `TickTick/Model/` and all tests in `TickTickTests/`.
 XcodeGen includes sources by folder glob, so adding files in those folders never touches the project file.

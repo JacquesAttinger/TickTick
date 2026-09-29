@@ -15,7 +15,7 @@ The popover keys work while the popover is open with a timer active: Space pause
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
 TT-1 is on `master`. TT-2 through TT-9 are open PRs (#13 to #20), and this branch merges the TT-9 branch, which has all of them, so the step 0 gate is met.
 The code on the branch is the source of truth. "As built" below lists where the code differs from this plan.
 The planned folder layout gives this issue the `TickTick/Settings/` folder: `SettingsView.swift`, `GeneralSettingsView.swift`, `ShortcutsSettingsView.swift`, and `ShortcutCatalog.swift` (`HelpView.swift` in the same folder belongs to TT-12).

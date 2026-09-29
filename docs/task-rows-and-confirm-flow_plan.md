@@ -15,7 +15,7 @@ The right pane is this issue: the note's task rows, the empty row at the bottom 
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md` (Swift 6 + SwiftUI, AppKit where needed, XcodeGen project, SwiftData storage).
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app described in `docs/planning.md` (Swift 6 + SwiftUI, AppKit where needed, XcodeGen project, SwiftData storage).
 TT-1 is on `master`. TT-2 through TT-8 are open PRs (#13 to #19), and this branch merges the TT-8 branch, which has all of them.
 The code on the branch is the source of truth. "As built" below lists where the code differs from this plan.
 The area is `TickTick/Notes/`, the Notes window views: TT-8 ships `NotesWindow.swift`, `NoteSidebarView.swift`, and a `NoteDetailView.swift` whose detail pane is an explicit placeholder labeled for this issue.

@@ -15,7 +15,7 @@ The notification permission prompt appears once, on the first launch after this 
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
 TT-1 (the scaffold), TT-2 and TT-3 (model and time code), and TT-4 (the timer engine) are on `origin/master`.
 TT-5 (the menu bar item and popover, TOD-9) is still in PR #16, so this branch also merges its code branch `jacques/tod-9-tt-5-menu-bar-item-and-popover-code`.
 The planned folder layout gives this issue the `TickTick/Alarm/` folder: `FlashController.swift`, `AlarmSound.swift`, and `NotificationController.swift`.
