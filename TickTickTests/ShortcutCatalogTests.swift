@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-29 10:30 PT
 
 import KeyboardShortcuts
 import SwiftUI
@@ -19,6 +19,19 @@ struct ShortcutCatalogTests {
         for info in ShortcutCatalog.all {
             #expect(!info.description.trimmingCharacters(in: .whitespaces).isEmpty, "\(info.id)")
             #expect(!info.keysText.isEmpty, "\(info.id)")
+        }
+    }
+
+    @Test("The scope groups hold every entry exactly once, and each scope has a title")
+    func groupingIsTotal() {
+        let groups = ShortcutCatalog.grouped
+
+        #expect(groups.map(\.scope) == ShortcutScope.allCases)
+        #expect(groups.flatMap(\.shortcuts).map(\.id) == ShortcutCatalog.all.map(\.id))
+        for group in groups {
+            #expect(!group.shortcuts.isEmpty, "\(group.scope)")
+            #expect(group.shortcuts.allSatisfy { $0.scope == group.scope }, "\(group.scope)")
+            #expect(!group.scope.title.trimmingCharacters(in: .whitespaces).isEmpty, "\(group.scope)")
         }
     }
 
