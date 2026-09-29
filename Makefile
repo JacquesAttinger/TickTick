@@ -1,4 +1,4 @@
-# Last edited: 2026-09-29 19:30 CDT
+# Last edited: 2026-09-29 19:40 CDT
 # Developer commands for TickTick. Run scripts/setup.sh once before the first `make`.
 
 PROJECT := TickTick.xcodeproj
@@ -12,7 +12,7 @@ RELEASE_APP := $(DERIVED)/Build/Products/Release/TickTick.app
 # The test matches the pre-commit hook's `*Xcode*.app*` check.
 XCODE_SELECT_PATH := $(shell xcode-select -p)
 ifeq ($(and $(findstring Xcode,$(XCODE_SELECT_PATH)),$(findstring .app,$(XCODE_SELECT_PATH))),)
-ifneq ($(wildcard /Applications/Xcode.app),)
+ifneq ($(wildcard /Applications/Xcode.app/Contents/Developer),)
 export DEVELOPER_DIR := /Applications/Xcode.app/Contents/Developer
 endif
 endif

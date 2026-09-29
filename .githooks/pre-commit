@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Last edited: 2026-09-29 19:05 CDT
+# Last edited: 2026-09-29 19:40 CDT
 # Blocks a commit when a staged Swift file fails SwiftFormat (lint mode) or SwiftLint.
 # It checks the working-tree content of the staged paths, not the staged blobs.
 set -euo pipefail
@@ -23,7 +23,7 @@ done
 # SwiftLint loads SourceKit from Xcode.app; the CommandLineTools path crashes it.
 developer_dir="${DEVELOPER_DIR:-$(xcode-select -p)}"
 # Like the Makefile, use /Applications/Xcode.app when xcode-select points at the Command Line Tools.
-if [[ "$developer_dir" != *Xcode*.app* && -d /Applications/Xcode.app ]]; then
+if [[ "$developer_dir" != *Xcode*.app* && -d /Applications/Xcode.app/Contents/Developer ]]; then
   developer_dir=/Applications/Xcode.app/Contents/Developer
   export DEVELOPER_DIR="$developer_dir"
 fi
