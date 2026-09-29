@@ -1,18 +1,17 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-29 10:47 PT
 
 import Foundation
 import KeyboardShortcuts
 import Testing
 @testable import TickTick
 
-/// The shared test defaults suite, with the `Preferences` keys removed before and after each test.
+/// A fixed test defaults suite, with the `Preferences` keys removed before and after each test.
 final class TestPreferenceDefaults {
-    private static let suiteName = "com.jacquesattinger.TickTickTests"
-
     let defaults: UserDefaults
 
-    init() throws {
-        defaults = try #require(UserDefaults(suiteName: Self.suiteName))
+    /// - Parameter suiteName: a suite for each test struct, so two structs that run at the same time do not share keys.
+    init(suiteName: String = "com.jacquesattinger.TickTickTests") throws {
+        defaults = try #require(UserDefaults(suiteName: suiteName))
         clear()
     }
 

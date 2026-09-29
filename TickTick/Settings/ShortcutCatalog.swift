@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-29 10:35 PT
 
 import KeyboardShortcuts
 import SwiftUI
@@ -18,6 +18,15 @@ enum ShortcutScope: CaseIterable {
     case popover
     /// In the Notes window.
     case notes
+
+    /// The heading for this scope's shortcuts in the Help tab.
+    var title: String {
+        switch self {
+        case .global: "Anywhere"
+        case .popover: "In the popover"
+        case .notes: "In the Notes window"
+        }
+    }
 }
 
 /// One shortcut: its keys, what it does, and where it works.
@@ -113,13 +122,13 @@ enum ShortcutCatalog {
         ShortcutInfo(
             id: "notes.saveTask",
             keys: .plain("Return"),
-            description: "Save the task, then ask how long it takes. In \"How long?\", start the timer",
+            description: "Save the task, then ask how long it takes. In “How long?”, start the timer",
             scope: .notes
         ),
         ShortcutInfo(
             id: "notes.skipTimer",
             keys: .plain("Esc"),
-            description: "In \"How long?\", keep the task with no timer",
+            description: "In “How long?”, keep the task with no timer",
             scope: .notes
         ),
         startTimer,
@@ -141,6 +150,13 @@ enum ShortcutCatalog {
     /// Every shortcut, grouped by scope: global, then popover, then notes.
     static var all: [ShortcutInfo] {
         [quickAdd, togglePopover] + popoverKeys + notesKeys
+    }
+
+    /// Every shortcut, in one group for each scope, in the order global, popover, notes. Each group keeps the order of
+    /// `all`.
+    static var grouped: [(scope: ShortcutScope, shortcuts: [ShortcutInfo])] {
+        let entries = all
+        return ShortcutScope.allCases.map { scope in (scope, entries.filter { $0.scope == scope }) }
     }
 
     /// The symbols of a SwiftUI shortcut in the Mac order (⌃⌥⇧⌘), for example `⇧⌘C` or `⌘↩`.
