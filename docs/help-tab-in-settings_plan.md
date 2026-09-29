@@ -1,6 +1,6 @@
 # TT-12: Help tab in Settings
 
-<!-- Last edited: 2026-09-29 10:10 PT -->
+<!-- Last edited: 2026-09-29 10:35 PT -->
 
 **TLDR:** We add a third tab, "Help", to the Settings window.
 It explains every feature of the app in short sections, and it shows a table of every keyboard shortcut.
@@ -84,5 +84,6 @@ Second, `NSTabViewController` removes a deselected tab's view from the hierarchy
 
 **Human comment:** none.
 The brief's Revision section exists only because the first planning run failed before launch ("claude --bg exited 1: Workspace not trusted"), so no plan file existed on this branch.
-**What changed:** this file is the first and complete plan, written fresh.
-**Sections updated:** all sections were written new.
+**What changed:** the plan was written fresh in the previous run and is unchanged in substance.
+This revision run re-verified every claim against the current code (the `SettingsTab` cases, `ShortcutCatalog.all`, `ShortcutInfo.keysText`, and the test files all exist as described) and found no correction needed.
+**Sections updated:** none; only this revision note and the timestamp changed.
