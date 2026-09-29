@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-29 18:35 CDT
 
 import Foundation
 import SwiftData
@@ -46,6 +46,25 @@ struct QuickAddSessionTests {
         #expect(timer.phase == .running(endDate: clock.now.addingTimeInterval(1500)))
         #expect(session.step == .closed)
         #expect(closes.count == 1)
+    }
+
+    @Test("The task goes to the target note, and the label shows its title")
+    func taskGoesToTheTargetNote() throws {
+        let work = service.createNote(title: "Sep 30")
+        let workSession = QuickAddSession(service: service, engine: engine) { work }
+        #expect(workSession.noteTitle == "Sep 30")
+
+        workSession.send(.submitTask("Write cover letter"))
+
+        let task = try #require(workSession.task)
+        #expect(task.note === work)
+        #expect(service.openTasks(in: work) == [task])
+        #expect(service.openTasks(in: inbox).isEmpty)
+    }
+
+    @Test("The label shows Inbox when the target is the Inbox")
+    func labelShowsInbox() {
+        #expect(session.noteTitle == "Inbox")
     }
 
     @Test("Esc on step 1 saves nothing")

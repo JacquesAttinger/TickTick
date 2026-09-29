@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 17:58 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import Foundation
 import Observation
@@ -7,8 +7,8 @@ import os
 /// One opening of the quick-add panel: the flow, the typed text, and the task it saved.
 ///
 /// `QuickAddView` shows it and sends it events. It runs the flow's effects on the real data: it adds the task to
-/// the Inbox through `TaskService` and starts the timer through `TimerEngine`. The panel builds a new session on
-/// every opening, so no half-typed text comes back.
+/// the target note (the selected note, or the Inbox) through `TaskService` and starts the timer through
+/// `TimerEngine`. The panel builds a new session on every opening, so no half-typed text comes back.
 @Observable
 @MainActor
 final class QuickAddSession {
@@ -20,18 +20,21 @@ final class QuickAddSession {
     var durationText = ""
     /// The task that step 1 saved.
     private(set) var task: TaskItem?
+    /// The title of the note that gets the task, for the label in the panel.
+    private(set) var noteTitle: String
 
     @ObservationIgnored private let service: TaskService
     @ObservationIgnored private let engine: TimerEngine
-    @ObservationIgnored private let inbox: () throws -> Note
+    @ObservationIgnored private let targetNote: () throws -> Note
     /// Closes the panel. The controller sets it.
     @ObservationIgnored var onClose: () -> Void = {}
 
-    /// - Parameter inbox: returns the Inbox note, for example `ModelStore.bootstrapInbox`.
-    init(service: TaskService, engine: TimerEngine, inbox: @escaping () throws -> Note) {
+    /// - Parameter targetNote: returns the note that gets the new task, for example `AppCore.quickAddNote`.
+    init(service: TaskService, engine: TimerEngine, targetNote: @escaping () throws -> Note) {
         self.service = service
         self.engine = engine
-        self.inbox = inbox
+        self.targetNote = targetNote
+        noteTitle = (try? targetNote().title) ?? ModelStore.inboxTitle
     }
 
     var step: QuickAddFlow.Step {
@@ -71,9 +74,11 @@ final class QuickAddSession {
 
     private func createTask(title: String) {
         do {
-            task = try service.createTask(title: title, in: inbox())
+            let note = try targetNote()
+            noteTitle = note.title
+            task = service.createTask(title: title, in: note)
         } catch {
-            Self.logger.error("No Inbox for the new task: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("No note for the new task: \(error.localizedDescription, privacy: .public)")
             send(.focusLost)
         }
     }

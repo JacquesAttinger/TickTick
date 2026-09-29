@@ -1,4 +1,4 @@
-// Last edited: 2026-09-28 17:30 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import Foundation
 
@@ -13,6 +13,8 @@ enum DebugStoreLaunch {
     static let argument = "debugStorePath"
     /// The `UserDefaults` key of the timer state while the debug store is open.
     static let activeTimerKey = "debugActiveTimer"
+    /// The `UserDefaults` key of the selected note while the debug store is open.
+    static let selectedNoteKey = "debugSelectedNoteID"
 
     /// The store file from `-debugStorePath PATH`, with `~` expanded. Nil when the argument is missing or blank.
     static func storeURL(in arguments: [String: Any]) -> URL? {
@@ -31,7 +33,8 @@ enum DebugStoreLaunch {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         return try AppCore(
             modelStore: ModelStore(storeURL: url),
-            activeTimerStore: ActiveTimerStore(key: activeTimerKey)
+            activeTimerStore: ActiveTimerStore(key: activeTimerKey),
+            selectedNoteStore: SelectedNoteStore(key: selectedNoteKey)
         )
     }
 }

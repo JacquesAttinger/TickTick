@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:46 PT
+// Last edited: 2026-09-29 18:30 CDT
 
 import Foundation
 import KeyboardShortcuts
@@ -67,7 +67,8 @@ enum HelpContent {
     private static func createTask(_ preferences: Preferences) -> HelpSection {
         let keys = hotkeyText(.quickAdd, title: "Quick add", preferences: preferences)
         return HelpSection(title: "Create a task", paragraphs: [
-            "Press \(keys) in any app. Type the task and press Return. Quick add saves the task in the Inbox note.",
+            "Press \(keys) in any app. Type the task and press Return. Quick add saves the task in the note that is "
+                + "selected in the Notes window. The panel shows the note name.",
             "Then “How long?” asks for a time. Press Return to start the timer, or press Esc to keep the task with "
                 + "no timer.",
             "Type 25 for 25 minutes. 90m, 1h, 1h30, and 1:30 also work. You can also click 5, 15, 25, 45, or 60 min. "
@@ -129,7 +130,8 @@ enum HelpContent {
         HelpSection(title: "Notes", paragraphs: [
             "Click Open Notes in the popover to open the Notes window.",
             "A note has a title and a list of tasks with checkboxes.",
-            "The Inbox note is always first. You can rename it, but you cannot delete it. Quick add puts tasks there.",
+            "The Inbox note is always first. You can rename it, but you cannot delete it. Quick add puts tasks there "
+                + "when no note is selected yet, or when the selected note is deleted.",
             "Drag a task by its handle to move it. A checked task stays in its place with a filled checkbox.",
             "A badge such as ⏱ 45m est · 52m actual shows the time you planned and the time the timer ran. Paused "
                 + "time does not count.",

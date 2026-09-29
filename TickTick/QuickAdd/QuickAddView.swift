@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 18:40 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import SwiftUI
 
@@ -78,21 +78,27 @@ private struct TaskStepView: View {
 
     var body: some View {
         IconRow(systemImage: "timer") {
-            TextField("New task…", text: $session.taskText)
-                .textFieldStyle(.plain)
-                .font(.system(size: QuickAddView.fieldFontSize))
-                .focused($fieldHasFocus)
-                .task {
-                    // Focus set at once is lost while the panel appears. A short wait makes it stick.
-                    try? await Task.sleep(for: .milliseconds(50))
-                    fieldHasFocus = true
-                }
-                .onSubmit {
-                    session.send(.submitTask(session.taskText))
-                }
-                .onExitCommand {
-                    session.send(.escapeOnTask)
-                }
+            VStack(alignment: .leading, spacing: 6) {
+                TextField("New task…", text: $session.taskText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: QuickAddView.fieldFontSize))
+                    .focused($fieldHasFocus)
+                    .task {
+                        // Focus set at once is lost while the panel appears. A short wait makes it stick.
+                        try? await Task.sleep(for: .milliseconds(50))
+                        fieldHasFocus = true
+                    }
+                    .onSubmit {
+                        session.send(.submitTask(session.taskText))
+                    }
+                    .onExitCommand {
+                        session.send(.escapeOnTask)
+                    }
+                Text("Adding to \(session.noteTitle)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
     }
 }
@@ -116,9 +122,10 @@ private struct DurationStepView: View {
                     } onSkip: {
                         session.send(.skipDuration)
                     }
-                    Text("Saved in Inbox. Esc keeps it without a timer.")
+                    Text("Saved in \(session.noteTitle). Esc keeps it without a timer.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
         }

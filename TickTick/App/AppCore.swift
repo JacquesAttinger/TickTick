@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:25 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import Foundation
 import os
@@ -16,20 +16,33 @@ final class AppCore {
     let taskService: TaskService
     let timerEngine: TimerEngine
     let activeTimerStore: ActiveTimerStore
+    let selectedNoteStore: SelectedNoteStore
 
     /// - Parameters:
     ///   - activeTimerStore: where the timer state is saved. The app uses the standard defaults.
+    ///   - selectedNoteStore: where the selected note is saved. The app uses the standard defaults.
     ///   - schedulesExpiry: true in the app. Tests pass false and a test clock.
     init(
         modelStore: ModelStore,
         activeTimerStore: ActiveTimerStore = ActiveTimerStore(),
+        selectedNoteStore: SelectedNoteStore = SelectedNoteStore(),
         clock: any TimerClock = SystemClock(),
         schedulesExpiry: Bool = true
     ) {
         self.modelStore = modelStore
         self.activeTimerStore = activeTimerStore
+        self.selectedNoteStore = selectedNoteStore
         taskService = TaskService(context: modelStore.context, now: { clock.now })
         timerEngine = TimerEngine(service: taskService, clock: clock, schedulesExpiry: schedulesExpiry)
+    }
+
+    /// The note that quick-add saves a new task in: the note selected in the Notes window, or the Inbox when no
+    /// note is saved or the saved note is gone.
+    func quickAddNote() throws -> Note {
+        if let note = selectedNoteStore.note(in: taskService) {
+            return note
+        }
+        return try modelStore.bootstrapInbox()
     }
 
     /// Restores the timer that was saved before the last quit. Then, when the launch arguments have

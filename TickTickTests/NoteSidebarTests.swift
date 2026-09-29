@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-29 18:35 CDT
 
 import Foundation
 import SwiftData
@@ -11,11 +11,17 @@ struct NoteSidebarTests {
     private let store: ModelStore
     private let service: TaskService
     private let inbox: Note
+    private let defaults: TestTimerDefaults
 
     init() throws {
+        defaults = try TestTimerDefaults()
         store = try ModelStore(inMemory: true)
         service = TaskService(context: store.context)
         inbox = try store.bootstrapInbox()
+    }
+
+    private func makeModel() -> NotesSidebarModel {
+        NotesSidebarModel(service: service, selectedNoteStore: defaults.makeSelectedNoteStore())
     }
 
     // MARK: - TaskService
@@ -54,16 +60,37 @@ struct NoteSidebarTests {
     func inboxSelectedAtStart() {
         service.createNote(title: "Work")
 
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         #expect(model.notes.map(\.title) == ["Inbox", "Work"])
         #expect(model.selectedNote === inbox)
     }
 
+    @Test("A selection is saved, and a new model starts with it")
+    func selectionIsSavedAndRestored() {
+        let work = service.createNote(title: "Work")
+        let model = makeModel()
+
+        model.select(noteID: work.id)
+
+        #expect(defaults.makeSelectedNoteStore().noteID == work.id)
+        #expect(makeModel().selectedNote === work)
+    }
+
+    @Test("A saved note that is gone selects the Inbox and saves it")
+    func staleSavedSelectionFallsBackToInbox() {
+        defaults.makeSelectedNoteStore().noteID = UUID()
+
+        let model = makeModel()
+
+        #expect(model.selectedNote === inbox)
+        #expect(defaults.makeSelectedNoteStore().noteID == inbox.id)
+    }
+
     @Test("select(noteID:) selects the note, or the Inbox for nil or an unknown ID")
     func selectByID() {
         let work = service.createNote(title: "Work")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.select(noteID: work.id)
         #expect(model.selectedNote === work)
@@ -75,7 +102,7 @@ struct NoteSidebarTests {
 
     @Test("select(noteID:) finds a note that was created after the model read the notes")
     func selectFindsANewNote() {
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         let work = service.createNote(title: "Work")
 
         model.select(noteID: work.id)
@@ -86,7 +113,7 @@ struct NoteSidebarTests {
     @Test("A click on no row keeps the selection")
     func clickOnNoRowKeepsSelection() {
         let work = service.createNote(title: "Work")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.selectInList(work.id)
         model.selectInList(nil)
@@ -96,7 +123,7 @@ struct NoteSidebarTests {
 
     @Test("createNote adds New Note last, selects it, and opens its title")
     func createNoteSelectsAndRenames() throws {
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.createNote()
 
@@ -109,21 +136,24 @@ struct NoteSidebarTests {
 
     @Test("commitRename saves the trimmed title, and the title survives a new read")
     func commitRenameSavesTrimmedTitle() {
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         model.createNote()
 
         model.renameText = "  Groceries \n"
         model.commitRename()
 
         #expect(model.renamingID == nil)
-        let reread = NotesSidebarModel(service: TaskService(context: store.context))
+        let reread = NotesSidebarModel(
+            service: TaskService(context: store.context),
+            selectedNoteStore: defaults.makeSelectedNoteStore()
+        )
         #expect(reread.notes.map(\.title) == ["Inbox", "Groceries"])
     }
 
     @Test("An empty or blank title keeps the old title", arguments: ["", "   ", "\n"])
     func blankTitleKeepsOldTitle(text: String) {
         let work = service.createNote(title: "Work")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.startRenaming(work)
         model.renameText = text
@@ -135,7 +165,7 @@ struct NoteSidebarTests {
 
     @Test("cancelRename closes the field and keeps the old title")
     func cancelRenameKeepsTitle() {
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         model.startRenaming(inbox)
 
         model.renameText = "Capture"
@@ -148,7 +178,7 @@ struct NoteSidebarTests {
     @Test("Renaming a second note saves the first one")
     func secondRenameSavesTheFirst() {
         let work = service.createNote(title: "Work")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         model.startRenaming(work)
         model.renameText = "Job"
 
@@ -161,7 +191,7 @@ struct NoteSidebarTests {
 
     @Test("The Inbox gets no delete question")
     func inboxHasNoDelete() {
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.requestDelete(inbox)
 
@@ -171,7 +201,7 @@ struct NoteSidebarTests {
     @Test("Cancel in the delete question keeps the note")
     func cancelDeleteKeepsNote() {
         let work = service.createNote(title: "Work")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
 
         model.requestDelete(work)
         #expect(model.pendingDelete === work)
@@ -185,7 +215,7 @@ struct NoteSidebarTests {
     func deleteSelectedNoteSelectsInbox() throws {
         let work = service.createNote(title: "Work")
         service.createTask(title: "Write report", in: work)
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         model.select(noteID: work.id)
 
         model.requestDelete(work)
@@ -201,7 +231,7 @@ struct NoteSidebarTests {
     func deleteOtherNoteKeepsSelection() {
         let work = service.createNote(title: "Work")
         let errands = service.createNote(title: "Errands")
-        let model = NotesSidebarModel(service: service)
+        let model = makeModel()
         model.select(noteID: errands.id)
 
         model.requestDelete(work)

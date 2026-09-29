@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:20 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import AppKit
 import SwiftUI
@@ -20,18 +20,24 @@ final class NotesWindowController {
     private let sidebar: NotesSidebarModel
     private var window: NSWindow?
 
-    init(service: TaskService, engine: TimerEngine, activation: ActivationPolicyController) {
+    init(
+        service: TaskService,
+        engine: TimerEngine,
+        activation: ActivationPolicyController,
+        selectedNoteStore: SelectedNoteStore
+    ) {
         self.service = service
         self.engine = engine
         self.activation = activation
-        sidebar = NotesSidebarModel(service: service)
+        sidebar = NotesSidebarModel(service: service, selectedNoteStore: selectedNoteStore)
     }
 
     /// Opens the Notes window, or brings it to the front when it is open, and selects the note with `noteID`.
-    /// With no `noteID`, a window that opens selects the Inbox, and a window that is open keeps its selection.
+    /// With no `noteID`, the window keeps its selection, also when it opens again. Quick-add saves new tasks in the
+    /// selected note, so an open must not move the selection.
     func open(selecting noteID: UUID?) {
         let window = window ?? makeWindow()
-        if noteID != nil || !window.isVisible {
+        if noteID != nil {
             sidebar.select(noteID: noteID)
         } else {
             sidebar.reload()

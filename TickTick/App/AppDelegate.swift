@@ -53,7 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let notes = NotesWindowController(
             service: core.taskService,
             engine: core.timerEngine,
-            activation: activation
+            activation: activation,
+            selectedNoteStore: core.selectedNoteStore
         )
         notesWindowController = notes
         let preferences = Preferences()
@@ -74,7 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         core.startTimer(launchArguments: DebugTimerLaunch.launchArguments)
         alarm.startSyncingNotifications()
         let quickAdd = QuickAddController(service: core.taskService, engine: core.timerEngine) {
-            try core.modelStore.bootstrapInbox()
+            try core.quickAddNote()
         }
         quickAdd.registerHotkey()
         quickAddController = quickAdd
