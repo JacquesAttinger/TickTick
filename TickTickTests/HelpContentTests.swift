@@ -56,4 +56,11 @@ struct HelpContentTests {
         #expect(text.contains { $0.contains("Press \(quickAdd) in any app.") })
         #expect(text.contains { $0.contains("press \(togglePopover),") })
     }
+
+    @Test("Settings has a Help tab after General and Shortcuts")
+    func settingsHasAHelpTab() {
+        #expect(SettingsTab.allCases == [.general, .shortcuts, .help])
+        #expect(SettingsTab.help.title == "Help")
+        #expect(SettingsTab.help.symbolName == "questionmark.circle")
+    }
 }
