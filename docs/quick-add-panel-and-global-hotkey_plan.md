@@ -15,7 +15,7 @@ Esc in step 2 keeps the task without a timer; Esc in step 1 closes without savin
 
 ## Orientation
 
-The repo is `JacquesAttinger/TODO_TIMER`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
+The repo is `JacquesAttinger/TickTick`, the TickTick menu-bar timeboxing app described in `docs/planning.md`.
 TT-1 (scaffold), TT-2 (model), TT-3 (time code), and TT-4 (timer engine) are on `origin/master`.
 TT-5 (menu bar, PR #16) and TT-6 (alarm, PR #17) are still open, so this branch also merges the TT-6 code branch `jacques/tod-10-tt-6-alarm-screen-flash-sound-notification-code`, which contains TT-5.
 This issue owns the `TickTick/QuickAdd/` folder.
