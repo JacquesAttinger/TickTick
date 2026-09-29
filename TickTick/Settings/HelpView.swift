@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:50 PT
+// Last edited: 2026-09-29 10:35 PT
 
 import SwiftUI
 
@@ -6,6 +6,8 @@ import SwiftUI
 /// The text is long, so this tab scrolls in a fixed height. The other tabs fit their content.
 struct HelpView: View {
     static let height: CGFloat = 560
+    /// Wide enough for `⌃⌥Space`, so the keys of most shortcuts line up. Wider keys make their row wider.
+    private static let keysWidth: CGFloat = 72
 
     /// Changes each time the tab shows, so the body reads the hotkeys' keys again. `NSTabViewController` removes a
     /// tab's view when you go to another tab, so `onAppear` runs on each return, for example after a new recording on
@@ -23,7 +25,9 @@ struct HelpView: View {
             }
             ForEach(HelpContent.shortcutGroups, id: \.scope) { group in
                 Section("Shortcuts: \(group.scope.title)") {
-                    shortcutGrid(group.shortcuts)
+                    ForEach(group.shortcuts) { info in
+                        shortcutRow(info)
+                    }
                 }
             }
         }
@@ -41,18 +45,18 @@ struct HelpView: View {
         }
     }
 
-    private func shortcutGrid(_ shortcuts: [ShortcutInfo]) -> some View {
-        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-            ForEach(shortcuts) { info in
-                GridRow {
-                    Text(info.keysText)
-                        .fontWeight(.medium)
-                        .gridColumnAlignment(.trailing)
-                    Text(info.description)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+    /// One form row for each shortcut: the keys on the left, in a column of the same width, then the description.
+    /// Not one `Grid` in a single row: the form measures such a row too short when a description wraps.
+    private func shortcutRow(_ info: ShortcutInfo) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(info.keysText)
+                .fontWeight(.medium)
+                .fixedSize()
+                .frame(minWidth: Self.keysWidth, alignment: .trailing)
+            Text(info.description)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 }
