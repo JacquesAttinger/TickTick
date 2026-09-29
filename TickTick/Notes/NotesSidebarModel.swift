@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 19:09 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import Foundation
 import Observation
@@ -9,6 +9,7 @@ import os
 ///
 /// Every change goes through `TaskService`. The views only show this state and call these methods, so the tests can
 /// check the rules without a window. There is always a selected note: the Inbox when nothing else is selected.
+/// Each new selection is saved in `SelectedNoteStore`, and the next launch starts with it.
 @Observable
 @MainActor
 final class NotesSidebarModel {
@@ -16,10 +17,16 @@ final class NotesSidebarModel {
     private static let logger = Logger(subsystem: AppDelegate.bundleIdentifier, category: "NotesSidebar")
 
     private let service: TaskService
+    private let selectedNoteStore: SelectedNoteStore
     /// The Inbox first, then the other notes by `sortIndex`.
     private(set) var notes: [Note] = []
     /// The ID of the selected note.
-    private(set) var selection: UUID?
+    private(set) var selection: UUID? {
+        didSet {
+            selectedNoteStore.noteID = selection
+        }
+    }
+
     /// The ID of the note whose title is an open text field.
     private(set) var renamingID: UUID?
     /// The text in the open title field.
@@ -27,8 +34,11 @@ final class NotesSidebarModel {
     /// The note that "Delete…" asks about. It is nil when no question shows.
     private(set) var pendingDelete: Note?
 
-    init(service: TaskService) {
+    /// Starts with the note that the store has saved, or with the Inbox when that note is gone.
+    init(service: TaskService, selectedNoteStore: SelectedNoteStore) {
         self.service = service
+        self.selectedNoteStore = selectedNoteStore
+        selection = selectedNoteStore.noteID
         reload()
     }
 

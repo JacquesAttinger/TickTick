@@ -148,7 +148,9 @@ The app has no Dock icon until you open the Notes window.
 3. In "How long?", type a time and press Return. The timer starts.
 4. Press Esc instead to save the task with no timer.
 
-Quick-add saves the task in the Inbox note.
+Quick-add saves the task in the note that is selected in the Notes window.
+TickTick remembers that note, also after you close the window or quit the app.
+When no note is saved yet, or the saved note was deleted, the task goes to the Inbox.
 
 **Time formats:** `25` is 25 minutes. `90m`, `1h`, `1h30`, and `1:30` also work.
 

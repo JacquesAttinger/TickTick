@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 15:21 PT
+// Last edited: 2026-09-29 18:35 CDT
 
 import Foundation
 import SwiftData
@@ -99,12 +99,41 @@ struct AppCoreTests {
         #expect(try #require(second.timerEngine.activeTimer).remaining(at: clock.now) == 50)
     }
 
+    // MARK: - Quick-add note
+
+    @Test("quickAddNote is the Inbox when no note is saved")
+    func quickAddNoteDefaultsToInbox() throws {
+        let core = launch(arguments: [:])
+
+        #expect(try core.quickAddNote().isInbox)
+    }
+
+    @Test("quickAddNote is the saved selected note")
+    func quickAddNoteIsTheSelectedNote() throws {
+        let core = launch(arguments: [:])
+        let work = core.taskService.createNote(title: "Work")
+        core.selectedNoteStore.noteID = work.id
+
+        #expect(try core.quickAddNote() === work)
+    }
+
+    @Test("quickAddNote is the Inbox when the saved note was deleted")
+    func quickAddNoteFallsBackWhenTheNoteIsDeleted() throws {
+        let core = launch(arguments: [:])
+        let work = core.taskService.createNote(title: "Work")
+        core.selectedNoteStore.noteID = work.id
+        try core.taskService.deleteNote(work)
+
+        #expect(try core.quickAddNote().isInbox)
+    }
+
     // MARK: - Helpers
 
     private func launch(arguments: [String: Any]) -> AppCore {
         let core = AppCore(
             modelStore: modelStore,
             activeTimerStore: saved.makeStore(),
+            selectedNoteStore: saved.makeSelectedNoteStore(),
             clock: clock,
             schedulesExpiry: false
         )

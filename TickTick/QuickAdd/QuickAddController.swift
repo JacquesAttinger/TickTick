@@ -1,4 +1,4 @@
-// Last edited: 2026-09-24 20:16 PT
+// Last edited: 2026-09-29 18:25 CDT
 
 import AppKit
 import KeyboardShortcuts
@@ -16,16 +16,16 @@ final class QuickAddController {
 
     private let service: TaskService
     private let engine: TimerEngine
-    private let inbox: () throws -> Note
+    private let targetNote: () throws -> Note
     private let panel = QuickAddPanel()
     private var session: QuickAddSession?
     private var resignObserver: (any NSObjectProtocol)?
 
-    /// - Parameter inbox: returns the Inbox note, for example `ModelStore.bootstrapInbox`.
-    init(service: TaskService, engine: TimerEngine, inbox: @escaping () throws -> Note) {
+    /// - Parameter targetNote: returns the note that gets the new task, for example `AppCore.quickAddNote`.
+    init(service: TaskService, engine: TimerEngine, targetNote: @escaping () throws -> Note) {
         self.service = service
         self.engine = engine
-        self.inbox = inbox
+        self.targetNote = targetNote
         resignObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didResignKeyNotification,
             object: panel,
@@ -55,7 +55,7 @@ final class QuickAddController {
     }
 
     private func open() {
-        let session = QuickAddSession(service: service, engine: engine, inbox: inbox)
+        let session = QuickAddSession(service: service, engine: engine, targetNote: targetNote)
         session.onClose = { [weak self, weak session] in
             guard let self, let session, self.session === session else {
                 return
