@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:30 PT
+// Last edited: 2026-09-29 10:35 PT
 
 import KeyboardShortcuts
 import SwiftUI
@@ -122,13 +122,13 @@ enum ShortcutCatalog {
         ShortcutInfo(
             id: "notes.saveTask",
             keys: .plain("Return"),
-            description: "Save the task, then ask how long it takes. In \"How long?\", start the timer",
+            description: "Save the task, then ask how long it takes. In “How long?”, start the timer",
             scope: .notes
         ),
         ShortcutInfo(
             id: "notes.skipTimer",
             keys: .plain("Esc"),
-            description: "In \"How long?\", keep the task with no timer",
+            description: "In “How long?”, keep the task with no timer",
             scope: .notes
         ),
         startTimer,

@@ -1,4 +1,4 @@
-// Last edited: 2026-09-29 10:40 PT
+// Last edited: 2026-09-29 10:35 PT
 
 import Foundation
 
@@ -45,11 +45,11 @@ enum HelpContent {
         HelpSection(title: "Create a task", paragraphs: [
             "Press \(quickAddKeys) in any app. Type the task and press Return. "
                 + "Quick add saves the task in the Inbox note.",
-            "Then \"How long?\" asks for a time. Press Return to start the timer, or press Esc to keep the task with "
+            "Then “How long?” asks for a time. Press Return to start the timer, or press Esc to keep the task with "
                 + "no timer.",
             "Type 25 for 25 minutes. 90m, 1h, 1h30, and 1:30 also work. You can also click 5, 15, 25, 45, or 60 min. "
                 + "The line under the field shows the length and when the timer ends.",
-            "In the Notes window, Return on a new task asks \"How long?\" the same way. The ▶ button on a task starts "
+            "In the Notes window, Return on a new task asks “How long?” the same way. The ▶ button on a task starts "
                 + "its timer later.",
         ])
     }
