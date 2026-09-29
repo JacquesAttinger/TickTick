@@ -1,4 +1,4 @@
-<!-- Last edited: 2026-09-29 12:05 PT -->
+<!-- Last edited: 2026-09-29 12:40 CDT -->
 <a id="readme-top"></a>
 
 [![Contributors][contributors-shield]][contributors-url]
@@ -165,6 +165,7 @@ The ▶ button on a task starts a timer for it.
 **Settings.**
 Open them with "Settings…" in the popover.
 You can turn each hotkey on or off, record other keys for it, and turn on launch at login.
+The Help tab explains each feature and lists every shortcut.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

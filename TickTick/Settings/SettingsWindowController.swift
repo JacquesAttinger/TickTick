@@ -1,17 +1,19 @@
-// Last edited: 2026-09-25 01:13 PT
+// Last edited: 2026-09-29 10:40 PT
 
 import AppKit
 import SwiftUI
 
-/// The tabs of the Settings window, in order. TT-12 adds Help.
+/// The tabs of the Settings window, in order.
 enum SettingsTab: CaseIterable {
     case general
     case shortcuts
+    case help
 
     var title: String {
         switch self {
         case .general: "General"
         case .shortcuts: "Shortcuts"
+        case .help: "Help"
         }
     }
 
@@ -19,6 +21,7 @@ enum SettingsTab: CaseIterable {
         switch self {
         case .general: "gearshape"
         case .shortcuts: "keyboard"
+        case .help: "questionmark.circle"
         }
     }
 }
@@ -90,6 +93,7 @@ final class SettingsWindowController {
         switch tab {
         case .general: AnyView(GeneralSettingsView(launchAtLogin: launchAtLogin))
         case .shortcuts: AnyView(ShortcutsSettingsView(preferences: preferences))
+        case .help: AnyView(HelpView(preferences: preferences))
         }
     }
 }
